@@ -36,7 +36,6 @@ const vibeOptions = [
 type CreateLoopForm = {
   name: string;
   frequency: "biweekly" | "monthly";
-  vibe: string[];
   context?: string;
 };
 
@@ -46,19 +45,35 @@ export default function Dashboard() {
   const { toast } = useToast();
   const form = useForm<CreateLoopForm>();
   const [selectedVibes, setSelectedVibes] = useState<string[]>([]);
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
 
   const onSubmit = async (data: CreateLoopForm) => {
     try {
+      if (selectedVibes.length === 0) {
+        toast({
+          title: "Error",
+          description: "Please select at least one newsletter vibe",
+          variant: "destructive",
+        });
+        return;
+      }
+
       await createLoop({
         ...data,
         vibe: selectedVibes,
         creatorId: user!.id,
         reminderSchedule: ["Wednesday", "Friday", "Sunday"],
       });
+
       toast({
         title: "Success",
         description: "Loop created successfully!",
       });
+
+      // Reset form and close dialog
+      form.reset();
+      setSelectedVibes([]);
+      setIsDialogOpen(false);
     } catch (error) {
       toast({
         title: "Error",
@@ -77,7 +92,13 @@ export default function Dashboard() {
   }
 
   const CreateLoopDialog = () => (
-    <Dialog>
+    <Dialog open={isDialogOpen} onOpenChange={(open) => {
+      setIsDialogOpen(open);
+      if (!open) {
+        form.reset();
+        setSelectedVibes([]);
+      }
+    }}>
       <DialogTrigger asChild>
         <Button>
           <Plus className="mr-2 h-4 w-4" /> Create Loop
@@ -113,6 +134,9 @@ export default function Dashboard() {
           </div>
           <div className="space-y-2">
             <Label>Newsletter Vibe</Label>
+            <p className="text-sm text-muted-foreground mb-2">
+              Select the tone and style for your newsletters. Choose one or more options that best fit your group.
+            </p>
             <div className="grid grid-cols-2 gap-4">
               {vibeOptions.map((vibe) => (
                 <div key={vibe.value} className="flex items-center space-x-2">
