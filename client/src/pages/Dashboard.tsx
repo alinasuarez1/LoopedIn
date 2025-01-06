@@ -58,7 +58,7 @@ export default function Dashboard() {
         return;
       }
 
-      await createLoop({
+      const response = await createLoop({
         ...data,
         vibe: selectedVibes,
         creatorId: user!.id,
@@ -67,7 +67,10 @@ export default function Dashboard() {
 
       toast({
         title: "Success",
-        description: "Loop created successfully!",
+        description: "Loop created successfully!" + 
+          (response.smsStatus === 'disabled' 
+            ? " SMS notifications are currently disabled." 
+            : ""),
       });
 
       // Reset form and close dialog

@@ -5,6 +5,7 @@ import { db } from "@db";
 import { loops, loopMembers, updates, newsletters, type User } from "@db/schema";
 import { and, eq } from "drizzle-orm";
 import { generateNewsletter, analyzeUpdatesForHighlights } from "./anthropic";
+import { sendWelcomeMessage } from "./twilio";
 
 export function registerRoutes(app: Express): Server {
   // Setup authentication routes
@@ -87,6 +88,14 @@ export function registerRoutes(app: Express): Server {
           context: "Loop Creator",
         });
 
+      // Try to send welcome message, but don't block on failure
+      try {
+        await sendWelcomeMessage(user.phoneNumber, loop.name);
+      } catch (smsError) {
+        console.warn('Failed to send welcome SMS:', smsError);
+        // Continue with loop creation even if SMS fails
+      }
+
       // Fetch the complete loop with members
       const [completeLoop] = await db.query.loops.findMany({
         where: eq(loops.id, loop.id),
@@ -96,7 +105,10 @@ export function registerRoutes(app: Express): Server {
         limit: 1,
       });
 
-      res.json(completeLoop);
+      res.json({
+        ...completeLoop,
+        smsStatus: process.env.TWILIO_ACCOUNT_SID ? 'enabled' : 'disabled'
+      });
     } catch (error) {
       console.error("Error creating loop:", error);
       res.status(500).send("Failed to create loop");
