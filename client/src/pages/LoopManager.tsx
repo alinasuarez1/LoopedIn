@@ -24,6 +24,7 @@ import { useForm } from "react-hook-form";
 import PhoneInput from 'react-phone-input-2';
 import 'react-phone-input-2/lib/style.css';
 import { useState } from "react";
+import { Checkbox } from "@/components/ui/checkbox";
 
 type AddMemberForm = {
   firstName: string;
@@ -233,7 +234,7 @@ export default function LoopManager() {
             </TabsContent>
             <TabsContent value="settings" className="mt-4">
               <h3 className="text-lg font-semibold mb-4">Loop Settings</h3>
-              <div className="space-y-4">
+              <div className="space-y-6">
                 <div>
                   <Label>Newsletter Frequency</Label>
                   <p className="text-muted-foreground">{loop.frequency}</p>
@@ -248,6 +249,57 @@ export default function LoopManager() {
                     <p className="text-muted-foreground">{loop.context}</p>
                   </div>
                 )}
+                <div>
+                  <Label>Reminder Schedule</Label>
+                  <div className="mt-2 space-y-2">
+                    {['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'].map((day) => (
+                      <div key={day} className="flex items-center space-x-2">
+                        <Checkbox
+                          id={day}
+                          checked={loop.reminderSchedule.includes(day)}
+                          onCheckedChange={async (checked) => {
+                            try {
+                              const newSchedule = checked
+                                ? [...loop.reminderSchedule, day]
+                                : loop.reminderSchedule.filter(d => d !== day);
+
+                              const response = await fetch(`/api/loops/${id}`, {
+                                method: 'PUT',
+                                headers: {
+                                  'Content-Type': 'application/json',
+                                },
+                                body: JSON.stringify({
+                                  ...loop,
+                                  reminderSchedule: newSchedule,
+                                }),
+                                credentials: 'include',
+                              });
+
+                              if (!response.ok) {
+                                throw new Error(await response.text());
+                              }
+
+                              toast({
+                                title: "Success",
+                                description: "Reminder schedule updated successfully!",
+                              });
+                            } catch (error) {
+                              toast({
+                                title: "Error",
+                                description: error instanceof Error ? error.message : "Failed to update reminder schedule",
+                                variant: "destructive",
+                              });
+                            }
+                          }}
+                        />
+                        <Label htmlFor={day}>{day}</Label>
+                      </div>
+                    ))}
+                  </div>
+                  <p className="text-sm text-muted-foreground mt-2">
+                    Members will receive SMS reminders on the selected days to share their updates.
+                  </p>
+                </div>
               </div>
             </TabsContent>
           </Tabs>
