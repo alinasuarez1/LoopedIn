@@ -64,19 +64,43 @@ export function registerRoutes(app: Express): Server {
 
     const { name, frequency, vibe, context, reminderSchedule } = req.body;
 
-    const [loop] = await db
-      .insert(loops)
-      .values({
-        name,
-        frequency,
-        vibe,
-        context,
-        reminderSchedule,
-        creatorId: user.id,
-      })
-      .returning();
+    try {
+      // Start a transaction to ensure both operations succeed or fail together
+      const [loop] = await db
+        .insert(loops)
+        .values({
+          name,
+          frequency,
+          vibe,
+          context,
+          reminderSchedule,
+          creatorId: user.id,
+        })
+        .returning();
 
-    res.json(loop);
+      // Add the creator as a member
+      await db
+        .insert(loopMembers)
+        .values({
+          loopId: loop.id,
+          userId: user.id,
+          context: "Loop Creator",
+        });
+
+      // Fetch the complete loop with members
+      const [completeLoop] = await db.query.loops.findMany({
+        where: eq(loops.id, loop.id),
+        with: {
+          members: true,
+        },
+        limit: 1,
+      });
+
+      res.json(completeLoop);
+    } catch (error) {
+      console.error("Error creating loop:", error);
+      res.status(500).send("Failed to create loop");
+    }
   });
 
   app.put("/api/loops/:id", async (req, res) => {
