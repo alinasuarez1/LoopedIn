@@ -14,6 +14,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useForm } from "react-hook-form";
 import { useLocation } from "wouter";
+import PhoneInput from 'react-phone-input-2';
+import 'react-phone-input-2/lib/style.css';
 
 type AuthFormData = {
   email: string;
@@ -29,12 +31,18 @@ export default function AuthPage() {
   const { toast } = useToast();
   const [, setLocation] = useLocation();
   const form = useForm<AuthFormData>();
+  const [phone, setPhone] = useState("");
 
   const onSubmit = async (data: AuthFormData) => {
     try {
+      const formData = {
+        ...data,
+        phoneNumber: phone // Use the phone state instead of form data
+      };
+
       const result = isLogin 
-        ? await login(data)
-        : await register(data);
+        ? await login(formData)
+        : await register(formData);
 
       if (!result.ok) {
         toast({
@@ -102,9 +110,14 @@ export default function AuthPage() {
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="phoneNumber">Phone Number</Label>
-                  <Input
-                    id="phoneNumber"
-                    {...form.register("phoneNumber", { required: true })}
+                  <PhoneInput
+                    country={'us'}
+                    value={phone}
+                    onChange={setPhone}
+                    containerClass="!w-full"
+                    inputClass="!w-full !h-10 !py-2 !px-3 !text-base !bg-background !border-input hover:!bg-accent hover:!text-accent-foreground !rounded-md"
+                    buttonClass="!bg-background !border-input hover:!bg-accent hover:!text-accent-foreground !rounded-l-md"
+                    dropdownClass="!bg-background !text-foreground"
                   />
                 </div>
               </>
