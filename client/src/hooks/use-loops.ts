@@ -1,10 +1,16 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import type { Loop, InsertLoop } from "@db/schema";
+import type { Loop, InsertLoop, LoopMember, Newsletter, Update, User } from "@db/schema";
+
+interface LoopWithRelations extends Loop {
+  members: (LoopMember & { user: User })[];
+  updates: (Update & { user: User })[];
+  newsletters: Newsletter[];
+}
 
 export function useLoops() {
   const queryClient = useQueryClient();
 
-  const { data: loops, isLoading } = useQuery<Loop[]>({
+  const { data: loops, isLoading } = useQuery<LoopWithRelations[]>({
     queryKey: ["/api/loops"],
   });
 
@@ -74,7 +80,7 @@ export function useLoops() {
 }
 
 export function useLoop(id: number) {
-  const { data: loop, isLoading } = useQuery<Loop>({
+  const { data: loop, isLoading } = useQuery<LoopWithRelations>({
     queryKey: [`/api/loops/${id}`],
   });
 
