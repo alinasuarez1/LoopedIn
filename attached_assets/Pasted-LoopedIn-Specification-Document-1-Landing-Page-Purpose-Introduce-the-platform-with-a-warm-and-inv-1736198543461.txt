@@ -1,0 +1,152 @@
+LoopedIn Specification Document
+1. Landing Page:
+Purpose: Introduce the platform with a warm and inviting design.
+Features:
+Catchy headline: "Stay in the Loop—Effortlessly Collect Updates and News from your group!"
+Modern, warm aesthetic with an orange color palette and subtle animations.
+Highlights of key features: collecting updates via SMS, automating newsletters, and keeping groups connected.
+Prominent CTA: "Get Started for Free!"
+Link to an example newsletter
+FAQ section with these questions and answers: 
+How does the sign up process work? It only takes one person to get your group started! Simply log into our website, create a Loop, and add your group members along with their phone numbers. After that, LoopedIn takes care of everything—collecting updates and creating newsletters. It's that easy!
+How much does it cost? It's completely free! There's no excuse to not sign up your group right now!
+What if I am in more than one loop? You're covered! You can send updates to all your Loops at once or specify which Loop you're updating by including the Loop name in your text.
+When can I send a text update? Anytime! LoopedIn collects updates around the clock to include in your newsletter. The texts we send are just friendly reminders. 😊
+How many texts should I send? As many as you want! Share updates, photos, or stories—the more you share, the richer and more engaging your newsletter will be.
+What can I send? Right now, LoopedIn supports texts and photos. Stay tuned—videos and voice memos are coming soon!
+2. User Authentication:
+Sign Up:
+Collect: First Name, Last Name, Email, and Phone Number 
+Login:
+Email and password-based authentication.
+Securely store credentials in a database.
+3. Onboarding Experience:
+Guided Setup:
+Walk new users through creating their first Loop.
+Provide tips for filling out required fields.
+4. Loops (Group Management):
+Users can create and manage "Loops."
+Creating a Loop:
+Required fields:
+Loop Name.
+Newsletter Frequency (every two weeks or every month).
+Newsletter Vibe (e.g., fun, casual, funny, formal, deep; multiple selections allowed).
+Newsletter Context (optional details about the group for newsletter personalization).
+Custom Reminder Schedule (default: every Wednesday, Friday, and Sunday).
+Creator automatically added as a member.
+Members added with: Name, Phone Number, optional email and optional context.
+Phone Number Input:
+Include a dropdown for country code extensions.
+Accept formats with parentheses and dashes.
+5. Loop Manager Page:
+Features:
+Newsletters: 
+Ability to Generate previews of the next newsletter
+View sent newsletters (previous)
+Manage Members: Add/remove members, update context.
+Update Settings: Change newsletter frequency, vibe, context, or custom reminder schedule.
+View Member Updates: Display submitted updates and media.
+6. Twilio SMS Integration:
+Automated SMS Reminders:
+Default schedule: Every Wednesday, Friday, and Sunday.
+Fully customizable by the Loop admin during creation or via the Loop Manager.
+Reminder text example: "Hi [name]! Share your updates for [loop name]’s newsletter! Reply to this message with text or photos."
+Receiving Updates:
+Process incoming SMS via Twilio Webhooks.
+Parse and store sender phone number, message body, and media attachments in the database.
+Respond with confirmation: "Thanks for your update to [loop name]!"
+Contextual processing:
+If a user specifies a Loop name, save the update to that Loop only.
+If no Loop is mentioned, save the update to all Loops the user belongs to.
+7. Newsletter Automation:
+Creation Process:
+Compile updates and media from the Loop.
+Generate a friendly, engaging newsletter using Generative AI (e.g., Claude by Anthropic). Make sure to include all members and most of the updates/images they share.
+Delivery:
+Send members an SMS with a link to a mobile-friendly webpage containing the full newsletter, including images.
+Example SMS: "[loop name]’s latest newsletter is ready! Click here to view: [URL]"
+9. Backend:
+Framework:
+Use Node.js with Express.
+APIs:
+Manage Loops, members, settings, newsletters, and SMS interactions.
+Database:
+Use PostgreSQL or MySQL.
+Google Cloud Storage:
+Integrate Google Cloud for storing and retrieving media (images).
+SMS Handling:
+Configure Twilio Webhooks to listen for incoming messages.
+10. Frontend:
+Framework:
+Build with HTML, CSS, and JavaScript (or React).
+Pages:
+Landing Page.
+Signup/Login.
+Dashboard (manage Loops, view newsletters).
+Loop Manager (settings, updates, past newsletters).
+Mobile-friendly newsletter page.
+11. Deployment:
+Platform:
+Use Replit Deployments or an equivalent service.
+Processes:
+Handle:
+Web requests.
+Incoming Twilio Webhooks.
+Scheduled cron jobs for reminders.
+12. Additional Features:
+Contextual Reminders:
+Allow admins to include details in reminder messages (e.g., "Don’t forget to share photos from the trip!").
+Newsletter Customization:
+Provide options to:
+Choose themes or layouts.
+Highlight specific updates or members.
+Edit newsletter before sending it out 
+13. Admin Manager Page:
+Purpose: Allow admins to oversee all Loops across the platform and manage them effectively.
+Features:
+Overview Dashboard:
+List of all Loops with key details:
+Loop Name.
+Admin Name.
+Member Count.
+Newsletter Frequency.
+Last Newsletter Sent Date.
+Search and filter options:
+By Loop Name.
+By Admin Name or email.
+By recent activity.
+Detailed Loop View:
+Click into any Loop for full details:
+Loop Name, Admin Info, Custom Reminder Schedule.
+List of members with names, phone numbers, and optional context.
+Past newsletters (linked to their respective mobile-friendly webpages).
+Member updates and media (with timestamps).
+Admin Controls:
+Edit Loop details: name, reminder schedule, newsletter settings.
+Manage members: add/remove members or update their details.
+View or manually trigger SMS reminders.
+Analytics:
+Track activity for each Loop:
+Number of updates received.
+Graph showing number of new loops 
+Graph showing member count
+Ability to send SMS messages to loops/users 
+Implementation Plan:
+Backend:
+Add admin routes for:
+Retrieving all Loops.
+Viewing and modifying specific Loop details.
+Logging admin actions for auditing.
+Frontend:
+Extend the admin dashboard UI with React (or similar framework) for:
+Overview Dashboard.
+Detailed Loop View.
+Database:
+Add necessary fields in the Loop table to store metadata (e.g., admin email, created date).
+Security:
+Restrict access to the Manager Page using role-based access control (RBAC).
+Admin Account Creation:
+Admin accounts will be created manually during the initial platform setup.
+Allow an interface for existing admins to designate other users as admins securely.
+14. Summary:
+LoopedIn is a platform that simplifies group communication by automating newsletters based on SMS updates. With customizable reminders, Google Cloud integration for media storage, and user-friendly design, LoopedIn keeps groups connected effortlessly.
