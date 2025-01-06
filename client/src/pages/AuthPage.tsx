@@ -115,8 +115,8 @@ export default function AuthPage() {
                     value={phone}
                     onChange={setPhone}
                     containerClass="!w-full"
-                    inputClass="!w-full !h-10 !py-2 !px-3 !text-base !bg-background !border-input hover:!bg-accent hover:!text-accent-foreground !rounded-md"
-                    buttonClass="!bg-background !border-input hover:!bg-accent hover:!text-accent-foreground !rounded-l-md"
+                    inputClass="!w-full !h-10 !py-2 !pl-12 !pr-3 !text-base !bg-background !border-input hover:!bg-accent hover:!text-accent-foreground !rounded-md"
+                    buttonClass="!absolute !left-0 !h-full !bg-background !border-input hover:!bg-accent hover:!text-accent-foreground !rounded-l-md"
                     dropdownClass="!bg-background !text-foreground"
                   />
                 </div>
