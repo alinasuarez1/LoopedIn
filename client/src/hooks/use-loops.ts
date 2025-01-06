@@ -49,8 +49,9 @@ export function useLoops() {
 
       return res.json();
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ["/api/loops"] });
+      queryClient.invalidateQueries({ queryKey: [`/api/loops/${data.id}`] });
     },
   });
 
@@ -80,12 +81,35 @@ export function useLoops() {
 }
 
 export function useLoop(id: number) {
+  const queryClient = useQueryClient();
   const { data: loop, isLoading } = useQuery<LoopWithRelations>({
     queryKey: [`/api/loops/${id}`],
+  });
+
+  const updateLoop = useMutation({
+    mutationFn: async (updates: Partial<Loop>) => {
+      const res = await fetch(`/api/loops/${id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ...loop, ...updates }),
+        credentials: "include",
+      });
+
+      if (!res.ok) {
+        throw new Error(await res.text());
+      }
+
+      return res.json();
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/loops"] });
+      queryClient.invalidateQueries({ queryKey: [`/api/loops/${id}`] });
+    },
   });
 
   return {
     loop,
     isLoading,
+    updateLoop: updateLoop.mutateAsync,
   };
 }
