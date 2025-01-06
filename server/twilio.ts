@@ -1,4 +1,7 @@
 import twilio from 'twilio';
+import { db } from "@db";
+import { loops } from "@db/schema";
+import { sql } from "drizzle-orm";
 
 const hasCredentials = !!(process.env.TWILIO_ACCOUNT_SID && process.env.TWILIO_AUTH_TOKEN && process.env.TWILIO_PHONE_NUMBER);
 let client: ReturnType<typeof twilio> | null = null;
@@ -64,11 +67,17 @@ export async function sendScheduledReminders() {
   }
 
   const currentDay = new Date().toLocaleDateString('en-US', { weekday: 'long' });
+  const currentHour = new Date().getHours();
+
+  // Only send reminders at 9 AM
+  if (currentHour !== 9) {
+    return;
+  }
 
   try {
     // Query all loops that have reminders scheduled for today
     const loopsToRemind = await db.query.loops.findMany({
-      where: (loops) => contains(loops.reminderSchedule, currentDay),
+      where: sql`${loops.reminderSchedule} @> ${JSON.stringify([currentDay])}::jsonb`,
       with: {
         members: {
           with: {
@@ -91,3 +100,8 @@ export async function sendScheduledReminders() {
     console.error('Error sending scheduled reminders:', error);
   }
 }
+
+// Start the reminder scheduler
+setInterval(sendScheduledReminders, 1000 * 60 * 60); // Check every hour
+// Initial check
+sendScheduledReminders();
