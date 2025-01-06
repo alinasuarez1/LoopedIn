@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { useLoops } from "../hooks/use-loops";
 import { useUser } from "../hooks/use-user";
 import { Button } from "@/components/ui/button";
@@ -22,6 +23,15 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Checkbox } from "@/components/ui/checkbox";
+
+const vibeOptions = [
+  { label: "Fun", value: "fun" },
+  { label: "Casual", value: "casual" },
+  { label: "Funny", value: "funny" },
+  { label: "Formal", value: "formal" },
+  { label: "Deep", value: "deep" },
+];
 
 type CreateLoopForm = {
   name: string;
@@ -35,11 +45,13 @@ export default function Dashboard() {
   const { loops, isLoading, createLoop } = useLoops();
   const { toast } = useToast();
   const form = useForm<CreateLoopForm>();
+  const [selectedVibes, setSelectedVibes] = useState<string[]>([]);
 
   const onSubmit = async (data: CreateLoopForm) => {
     try {
       await createLoop({
         ...data,
+        vibe: selectedVibes,
         creatorId: user!.id,
         reminderSchedule: ["Wednesday", "Friday", "Sunday"],
       });
@@ -100,11 +112,40 @@ export default function Dashboard() {
             </Select>
           </div>
           <div className="space-y-2">
-            <Label htmlFor="context">Context (Optional)</Label>
+            <Label>Newsletter Vibe</Label>
+            <div className="grid grid-cols-2 gap-4">
+              {vibeOptions.map((vibe) => (
+                <div key={vibe.value} className="flex items-center space-x-2">
+                  <Checkbox
+                    id={vibe.value}
+                    checked={selectedVibes.includes(vibe.value)}
+                    onCheckedChange={(checked) => {
+                      setSelectedVibes(prev =>
+                        checked
+                          ? [...prev, vibe.value]
+                          : prev.filter(v => v !== vibe.value)
+                      );
+                    }}
+                  />
+                  <label
+                    htmlFor={vibe.value}
+                    className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                  >
+                    {vibe.label}
+                  </label>
+                </div>
+              ))}
+            </div>
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="context">Group Context</Label>
+            <p className="text-sm text-muted-foreground mb-2">
+              Add details about your group to help personalize the newsletters. For example: "Family updates from our cross-country clan" or "Weekly progress from the website redesign team"
+            </p>
             <Input
               id="context"
               {...form.register("context")}
-              placeholder="E.g., Family updates, Team project progress"
+              placeholder="What brings your group together?"
             />
           </div>
           <Button type="submit" className="w-full">
