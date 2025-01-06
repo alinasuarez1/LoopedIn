@@ -35,7 +35,7 @@ type AddMemberForm = {
 
 export default function LoopManager() {
   const { id } = useParams<{ id: string }>();
-  const { loop, isLoading } = useLoop(parseInt(id));
+  const { loop, isLoading, updateLoop } = useLoop(parseInt(id));
   const { toast } = useToast();
   const form = useForm<AddMemberForm>();
   const [phone, setPhone] = useState("");
@@ -263,21 +263,9 @@ export default function LoopManager() {
                                 ? [...loop.reminderSchedule, day]
                                 : loop.reminderSchedule.filter(d => d !== day);
 
-                              const response = await fetch(`/api/loops/${id}`, {
-                                method: 'PUT',
-                                headers: {
-                                  'Content-Type': 'application/json',
-                                },
-                                body: JSON.stringify({
-                                  ...loop,
-                                  reminderSchedule: newSchedule,
-                                }),
-                                credentials: 'include',
+                              await updateLoop({
+                                reminderSchedule: newSchedule,
                               });
-
-                              if (!response.ok) {
-                                throw new Error(await response.text());
-                              }
 
                               toast({
                                 title: "Success",
