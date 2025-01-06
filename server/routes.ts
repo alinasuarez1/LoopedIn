@@ -2,7 +2,7 @@ import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { setupAuth } from "./auth";
 import { db } from "@db";
-import { loops, loopMembers, updates, newsletters, type User } from "@db/schema";
+import { loops, loopMembers, updates, newsletters, users, type User } from "@db/schema";
 import { and, eq } from "drizzle-orm";
 import { generateNewsletter, analyzeUpdatesForHighlights } from "./anthropic";
 import { sendWelcomeMessage } from "./twilio";
@@ -10,6 +10,80 @@ import { sendWelcomeMessage } from "./twilio";
 export function registerRoutes(app: Express): Server {
   // Setup authentication routes
   setupAuth(app);
+
+  // Twilio Webhook for incoming messages
+  app.post("/api/webhooks/twilio", async (req, res) => {
+    try {
+      const { From, Body, MediaUrl0 } = req.body;
+
+      // Clean up the phone number (remove the '+' prefix if present)
+      const phoneNumber = From.startsWith('+') ? From.substring(1) : From;
+
+      // Find the user by phone number
+      const [user] = await db
+        .select()
+        .from(users)
+        .where(eq(users.phoneNumber, phoneNumber))
+        .limit(1);
+
+      if (!user) {
+        console.warn(`Received message from unknown number: ${phoneNumber}`);
+        return res.status(404).send("User not found");
+      }
+
+      // Find all loops this user is a member of
+      const userLoops = await db.query.loopMembers.findMany({
+        where: eq(loopMembers.userId, user.id),
+        with: {
+          loop: true,
+        },
+      });
+
+      if (!userLoops.length) {
+        console.warn(`User ${user.id} is not a member of any loops`);
+        return res.status(404).send("No loops found for user");
+      }
+
+      // Extract loop name from message if specified
+      const loopNameMatch = Body.match(/\[(.*?)\]/);
+      const targetLoops = loopNameMatch
+        ? userLoops.filter(membership => membership.loop.name === loopNameMatch[1])
+        : userLoops;
+
+      if (loopNameMatch && !targetLoops.length) {
+        console.warn(`Specified loop not found: ${loopNameMatch[1]}`);
+        return res.status(404).send("Specified loop not found");
+      }
+
+      // Save update to each relevant loop
+      const savedUpdates = await Promise.all(
+        targetLoops.map(membership =>
+          db
+            .insert(updates)
+            .values({
+              loopId: membership.loop.id,
+              userId: user.id,
+              content: Body,
+              mediaUrl: MediaUrl0 || null,
+            })
+            .returning()
+        )
+      );
+
+      console.log(`Saved ${savedUpdates.length} updates for user ${user.id}`);
+
+      // Return a TwiML response
+      res.type('text/xml').send(`
+        <?xml version="1.0" encoding="UTF-8"?>
+        <Response>
+          <Message>Thanks for your update${targetLoops.length > 1 ? 's' : ''}!</Message>
+        </Response>
+      `);
+    } catch (error) {
+      console.error("Error processing Twilio webhook:", error);
+      res.status(500).send("Internal server error");
+    }
+  });
 
   // Loops
   app.get("/api/loops", async (req, res) => {
@@ -299,6 +373,5 @@ export function registerRoutes(app: Express): Server {
   });
 
   const httpServer = createServer(app);
-
   return httpServer;
 }
