@@ -20,7 +20,11 @@ export function registerRoutes(app: Express): Server {
     const userLoops = await db.query.loops.findMany({
       where: eq(loops.creatorId, user.id),
       with: {
-        members: true,
+        members: {
+          with: {
+            user: true,
+          },
+        },
         updates: true,
         newsletters: true,
       },
@@ -38,7 +42,11 @@ export function registerRoutes(app: Express): Server {
     const [loop] = await db.query.loops.findMany({
       where: eq(loops.id, parseInt(req.params.id)),
       with: {
-        members: true,
+        members: {
+          with: {
+            user: true,
+          },
+        },
         updates: true,
         newsletters: true,
       },
@@ -65,7 +73,7 @@ export function registerRoutes(app: Express): Server {
     const { name, frequency, vibe, context, reminderSchedule } = req.body;
 
     try {
-      // Start a transaction to ensure both operations succeed or fail together
+      // Create the loop first
       const [loop] = await db
         .insert(loops)
         .values({
@@ -87,14 +95,22 @@ export function registerRoutes(app: Express): Server {
           context: "Loop Creator",
         });
 
-      // Fetch the complete loop with members
+      // Fetch the complete loop with all relations
       const [completeLoop] = await db.query.loops.findMany({
         where: eq(loops.id, loop.id),
         with: {
-          members: true,
+          members: {
+            with: {
+              user: true,
+            },
+          },
         },
         limit: 1,
       });
+
+      if (!completeLoop) {
+        throw new Error("Failed to create loop");
+      }
 
       res.json(completeLoop);
     } catch (error) {
@@ -261,6 +277,5 @@ export function registerRoutes(app: Express): Server {
   });
 
   const httpServer = createServer(app);
-
   return httpServer;
 }

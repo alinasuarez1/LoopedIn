@@ -164,12 +164,12 @@ export default function Dashboard() {
           <div className="space-y-2">
             <Label htmlFor="context">Group Context</Label>
             <p className="text-sm text-muted-foreground mb-2">
-              Add details about your group to help personalize the newsletters. For example: "Family updates from our cross-country clan" or "Weekly progress from the website redesign team"
+              Add details about your squad to help personalize the newsletters. The more context you give us, the better your newsletters will be."
             </p>
             <Input
               id="context"
               {...form.register("context")}
-              placeholder="What brings your group together?"
+              placeholder="We are a group of friends who went to college together"
             />
           </div>
           <Button type="submit" className="w-full">
