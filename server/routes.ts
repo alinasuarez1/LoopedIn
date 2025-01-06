@@ -21,8 +21,16 @@ export function registerRoutes(app: Express): Server {
     const userLoops = await db.query.loops.findMany({
       where: eq(loops.creatorId, user.id),
       with: {
-        members: true,
-        updates: true,
+        members: {
+          with: {
+            user: true,
+          },
+        },
+        updates: {
+          with: {
+            user: true,
+          },
+        },
         newsletters: true,
       },
     });
@@ -39,8 +47,16 @@ export function registerRoutes(app: Express): Server {
     const [loop] = await db.query.loops.findMany({
       where: eq(loops.id, parseInt(req.params.id)),
       with: {
-        members: true,
-        updates: true,
+        members: {
+          with: {
+            user: true,
+          },
+        },
+        updates: {
+          with: {
+            user: true,
+          },
+        },
         newsletters: true,
       },
       limit: 1,
@@ -100,7 +116,17 @@ export function registerRoutes(app: Express): Server {
       const [completeLoop] = await db.query.loops.findMany({
         where: eq(loops.id, loop.id),
         with: {
-          members: true,
+          members: {
+            with: {
+              user: true,
+            },
+          },
+          updates: {
+            with: {
+              user: true,
+            },
+          },
+          newsletters: true,
         },
         limit: 1,
       });
