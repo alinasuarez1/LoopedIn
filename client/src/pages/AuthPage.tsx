@@ -16,11 +16,10 @@ import { useForm } from "react-hook-form";
 import { useLocation } from "wouter";
 
 type AuthFormData = {
-  username: string;
+  email: string;
   password: string;
   firstName?: string;
   lastName?: string;
-  email?: string;
   phoneNumber?: string;
 };
 
@@ -36,7 +35,7 @@ export default function AuthPage() {
       const result = isLogin 
         ? await login(data)
         : await register(data);
-      
+
       if (!result.ok) {
         toast({
           title: "Error",
@@ -70,10 +69,11 @@ export default function AuthPage() {
         <form onSubmit={form.handleSubmit(onSubmit)}>
           <CardContent className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="username">Username</Label>
+              <Label htmlFor="email">Email</Label>
               <Input
-                id="username"
-                {...form.register("username", { required: true })}
+                id="email"
+                type="email"
+                {...form.register("email", { required: true })}
               />
             </div>
             <div className="space-y-2">
@@ -98,14 +98,6 @@ export default function AuthPage() {
                   <Input
                     id="lastName"
                     {...form.register("lastName", { required: true })}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="email">Email</Label>
-                  <Input
-                    id="email"
-                    type="email"
-                    {...form.register("email", { required: true })}
                   />
                 </div>
                 <div className="space-y-2">
