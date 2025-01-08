@@ -66,18 +66,22 @@ export async function sendScheduledReminders() {
     return;
   }
 
-  const currentDay = new Date().toLocaleDateString('en-US', { weekday: 'long' });
-  const currentHour = new Date().getHours();
-
-  // Only send reminders at 9 AM
-  if (currentHour !== 9) {
-    return;
-  }
+  const now = new Date();
+  const currentDay = now.toLocaleDateString('en-US', { weekday: 'long' });
+  const currentTime = now.toLocaleTimeString('en-US', { 
+    hour12: false, 
+    hour: '2-digit', 
+    minute: '2-digit'
+  });
 
   try {
-    // Query all loops that have reminders scheduled for today
+    // Query all loops that have reminders scheduled for current day and time
     const loopsToRemind = await db.query.loops.findMany({
-      where: sql`${loops.reminderSchedule} @> ${JSON.stringify([currentDay])}::jsonb`,
+      where: sql`EXISTS (
+        SELECT 1 FROM jsonb_array_elements(${loops.reminderSchedule}) as schedule
+        WHERE schedule->>'day' = ${currentDay}
+        AND schedule->>'time' = ${currentTime}
+      )`,
       with: {
         members: {
           with: {
@@ -95,13 +99,13 @@ export async function sendScheduledReminders() {
       }
     }
 
-    console.log(`Sent reminders for ${loopsToRemind.length} loops on ${currentDay}`);
+    console.log(`Sent reminders for ${loopsToRemind.length} loops on ${currentDay} at ${currentTime}`);
   } catch (error) {
     console.error('Error sending scheduled reminders:', error);
   }
 }
 
-// Start the reminder scheduler
-setInterval(sendScheduledReminders, 1000 * 60 * 60); // Check every hour
+// Check for reminders every minute instead of every hour to be more precise
+setInterval(sendScheduledReminders, 1000 * 60);
 // Initial check
 sendScheduledReminders();

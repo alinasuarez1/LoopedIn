@@ -2,6 +2,11 @@ import { pgTable, text, serial, integer, boolean, timestamp, json } from "drizzl
 import { createInsertSchema, createSelectSchema } from "drizzle-zod";
 import { relations } from "drizzle-orm";
 
+export type ReminderSchedule = {
+  day: string;
+  time: string; // 24-hour format "HH:mm"
+}[];
+
 export const users = pgTable("users", {
   id: serial("id").primaryKey(),
   email: text("email").unique().notNull(),
@@ -18,7 +23,7 @@ export const loops = pgTable("loops", {
   frequency: text("frequency").notNull(), // 'biweekly' or 'monthly'
   vibe: json("vibe").$type<string[]>().notNull(),
   context: text("context"),
-  reminderSchedule: json("reminder_schedule").$type<string[]>().notNull(),
+  reminderSchedule: json("reminder_schedule").$type<ReminderSchedule>().notNull(),
   creatorId: integer("creator_id").references(() => users.id),
   createdAt: timestamp("created_at").defaultNow(),
 });

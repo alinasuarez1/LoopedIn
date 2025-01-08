@@ -25,6 +25,7 @@ import PhoneInput from 'react-phone-input-2';
 import 'react-phone-input-2/lib/style.css';
 import { useState } from "react";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 type AddMemberForm = {
   firstName: string;
@@ -32,6 +33,17 @@ type AddMemberForm = {
   email: string;
   context?: string;
 };
+
+const DEFAULT_REMINDER_SCHEDULE = [
+  { day: 'Wednesday', time: '09:00' },
+  { day: 'Friday', time: '17:00' },
+  { day: 'Sunday', time: '17:00' },
+];
+
+const DAYS_OF_WEEK = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+const TIME_OPTIONS = Array.from({ length: 24 }, (_, hour) =>
+  [`${hour.toString().padStart(2, '0')}:00`, `${hour.toString().padStart(2, '0')}:30`]
+).flat();
 
 export default function LoopManager() {
   const { id } = useParams<{ id: string }>();
@@ -252,40 +264,83 @@ export default function LoopManager() {
                 <div>
                   <Label>Reminder Schedule</Label>
                   <div className="mt-2 space-y-2">
-                    {['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'].map((day) => (
-                      <div key={day} className="flex items-center space-x-2">
-                        <Checkbox
-                          id={day}
-                          checked={loop.reminderSchedule.includes(day)}
-                          onCheckedChange={async (checked) => {
-                            try {
-                              const newSchedule = checked
-                                ? [...loop.reminderSchedule, day]
-                                : loop.reminderSchedule.filter(d => d !== day);
+                    {DAYS_OF_WEEK.map((day) => {
+                      const reminderForDay = loop.reminderSchedule.find(r => r.day === day);
+                      return (
+                        <div key={day} className="flex items-center space-x-4">
+                          <div className="flex items-center space-x-2 min-w-[200px]">
+                            <Checkbox
+                              id={day}
+                              checked={!!reminderForDay}
+                              onCheckedChange={async (checked) => {
+                                try {
+                                  const newSchedule = checked
+                                    ? [...loop.reminderSchedule, { day, time: '09:00' }]
+                                    : loop.reminderSchedule.filter(r => r.day !== day);
 
-                              await updateLoop({
-                                reminderSchedule: newSchedule,
-                              });
+                                  await updateLoop({
+                                    reminderSchedule: newSchedule,
+                                  });
 
-                              toast({
-                                title: "Success",
-                                description: "Reminder schedule updated successfully!",
-                              });
-                            } catch (error) {
-                              toast({
-                                title: "Error",
-                                description: error instanceof Error ? error.message : "Failed to update reminder schedule",
-                                variant: "destructive",
-                              });
-                            }
-                          }}
-                        />
-                        <Label htmlFor={day}>{day}</Label>
-                      </div>
-                    ))}
+                                  toast({
+                                    title: "Success",
+                                    description: "Reminder schedule updated successfully!",
+                                  });
+                                } catch (error) {
+                                  toast({
+                                    title: "Error",
+                                    description: error instanceof Error ? error.message : "Failed to update reminder schedule",
+                                    variant: "destructive",
+                                  });
+                                }
+                              }}
+                            />
+                            <Label htmlFor={day}>{day}</Label>
+                          </div>
+                          {reminderForDay && (
+                            <Select
+                              value={reminderForDay.time}
+                              onValueChange={async (newTime) => {
+                                try {
+                                  const newSchedule = loop.reminderSchedule.map(r =>
+                                    r.day === day ? { ...r, time: newTime } : r
+                                  );
+
+                                  await updateLoop({
+                                    reminderSchedule: newSchedule,
+                                  });
+
+                                  toast({
+                                    title: "Success",
+                                    description: "Reminder time updated successfully!",
+                                  });
+                                } catch (error) {
+                                  toast({
+                                    title: "Error",
+                                    description: error instanceof Error ? error.message : "Failed to update reminder time",
+                                    variant: "destructive",
+                                  });
+                                }
+                              }}
+                            >
+                              <SelectTrigger className="w-[180px]">
+                                <SelectValue placeholder="Select time" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {TIME_OPTIONS.map((time) => (
+                                  <SelectItem key={time} value={time}>
+                                    {time}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          )}
+                        </div>
+                      );
+                    })}
                   </div>
                   <p className="text-sm text-muted-foreground mt-2">
-                    Members will receive SMS reminders on the selected days to share their updates.
+                    Select the days and times when members will receive SMS reminders to share their updates.
                   </p>
                 </div>
               </div>
