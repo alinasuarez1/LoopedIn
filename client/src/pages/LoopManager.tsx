@@ -1,5 +1,5 @@
 import { useLoop } from "../hooks/use-loops";
-import { useParams } from "wouter";
+import { useParams, useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -10,7 +10,7 @@ import {
 } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, Plus } from "lucide-react";
+import { Loader2, Plus, ArrowLeft } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -52,6 +52,7 @@ export default function LoopManager() {
   const form = useForm<AddMemberForm>();
   const [phone, setPhone] = useState("");
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [, setLocation] = useLocation();
 
   const onSubmit = async (data: AddMemberForm) => {
     try {
@@ -160,6 +161,14 @@ export default function LoopManager() {
 
   return (
     <div className="container mx-auto p-4">
+      <Button
+        variant="ghost"
+        className="mb-4"
+        onClick={() => setLocation('/')}
+      >
+        <ArrowLeft className="h-4 w-4 mr-2" />
+        Back to Dashboard
+      </Button>
       <Card>
         <CardHeader className="flex flex-row items-center justify-between">
           <div>
