@@ -107,9 +107,26 @@ export function useLoop(id: number) {
     },
   });
 
+  const deleteLoop = useMutation({
+    mutationFn: async () => {
+      const res = await fetch(`/api/loops/${id}`, {
+        method: "DELETE",
+        credentials: "include",
+      });
+
+      if (!res.ok) {
+        throw new Error(await res.text());
+      }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/loops"] });
+    },
+  });
+
   return {
     loop,
     isLoading,
     updateLoop: updateLoop.mutateAsync,
+    deleteLoop: deleteLoop.mutateAsync,
   };
 }
