@@ -5,6 +5,7 @@ import LandingPage from "./pages/LandingPage";
 import AuthPage from "./pages/AuthPage";
 import Dashboard from "./pages/Dashboard";
 import LoopManager from "./pages/LoopManager";
+import { Navbar } from "./components/Navbar";
 
 function App() {
   const { user, isLoading } = useUser();
@@ -17,20 +18,23 @@ function App() {
     );
   }
 
-  if (!user) {
-    return (
-      <Switch>
-        <Route path="/auth" component={AuthPage} />
-        <Route component={LandingPage} />
-      </Switch>
-    );
-  }
-
   return (
-    <Switch>
-      <Route path="/loops/:id" component={LoopManager} />
-      <Route path="/" component={Dashboard} />
-    </Switch>
+    <div className="min-h-screen bg-background">
+      <Navbar />
+      <main>
+        {!user ? (
+          <Switch>
+            <Route path="/auth" component={AuthPage} />
+            <Route component={LandingPage} />
+          </Switch>
+        ) : (
+          <Switch>
+            <Route path="/loops/:id" component={LoopManager} />
+            <Route path="/" component={Dashboard} />
+          </Switch>
+        )}
+      </main>
+    </div>
   );
 }
 
