@@ -253,21 +253,58 @@ export function registerRoutes(app: Express): Server {
       return res.status(401).send("Not authenticated");
     }
 
-    const [loop] = await db
-      .delete(loops)
-      .where(
-        and(
-          eq(loops.id, parseInt(req.params.id)),
-          eq(loops.creatorId, user.id)
-        )
-      )
-      .returning();
+    try {
+      // Delete all associated data in a transaction
+      const [deletedLoop] = await db.transaction(async (tx) => {
+        // First verify the user owns this loop
+        const [loop] = await tx
+          .select()
+          .from(loops)
+          .where(
+            and(
+              eq(loops.id, parseInt(req.params.id)),
+              eq(loops.creatorId, user.id)
+            )
+          )
+          .limit(1);
 
-    if (!loop) {
-      return res.status(404).send("Loop not found");
+        if (!loop) {
+          throw new Error("Loop not found or not authorized");
+        }
+
+        // Delete all members
+        await tx
+          .delete(loopMembers)
+          .where(eq(loopMembers.loopId, loop.id));
+
+        // Delete all updates
+        await tx
+          .delete(updates)
+          .where(eq(updates.loopId, loop.id));
+
+        // Delete all newsletters
+        await tx
+          .delete(newsletters)
+          .where(eq(newsletters.loopId, loop.id));
+
+        // Finally delete the loop itself
+        const [deletedLoop] = await tx
+          .delete(loops)
+          .where(eq(loops.id, loop.id))
+          .returning();
+
+        return [deletedLoop];
+      });
+
+      if (!deletedLoop) {
+        return res.status(404).send("Loop not found");
+      }
+
+      res.json({ message: "Loop and all associated data deleted" });
+    } catch (error) {
+      console.error("Error deleting loop:", error);
+      res.status(500).send(error instanceof Error ? error.message : "Failed to delete loop");
     }
-
-    res.json({ message: "Loop deleted" });
   });
 
   // Loop Members
