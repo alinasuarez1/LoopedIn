@@ -31,7 +31,7 @@ export function Navbar() {
 
   return (
     <nav className="border-b bg-orange-50/50">
-      <div className="container mx-auto px-4 h-16 flex items-center justify-between">
+      <div className="max-w-5xl mx-auto px-4 h-16 flex items-center justify-between">
         <Link href="/">
           <span className="text-2xl font-bold text-primary cursor-pointer">
             LoopedIn

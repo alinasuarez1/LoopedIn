@@ -6,6 +6,7 @@ import {
   AccordionTrigger,
 } from "@/components/ui/accordion";
 import { Link } from "wouter";
+import { MessageSquareText, Cpu, Bell } from "lucide-react";
 
 const faqs = [
   {
@@ -39,7 +40,7 @@ export default function LandingPage() {
     <div className="min-h-screen bg-background">
       {/* Hero Section */}
       <section className="container mx-auto px-4 py-24 text-center">
-        <h1 className="text-5xl font-bold tracking-tight mb-6">
+        <h1 className="text-5xl font-bold tracking-tight mb-6 max-w-3xl mx-auto">
           Stay in the Loop—Effortlessly Collect Updates and News from your group!
         </h1>
         <p className="text-xl text-muted-foreground mb-8 max-w-2xl mx-auto">
@@ -56,21 +57,36 @@ export default function LandingPage() {
       <section className="bg-muted py-16">
         <div className="container mx-auto px-4">
           <h2 className="text-3xl font-bold text-center mb-12">Key Features</h2>
-          <div className="grid md:grid-cols-3 gap-8">
+          <div className="grid md:grid-cols-3 gap-8 max-w-5xl mx-auto">
             <div className="bg-card p-6 rounded-lg shadow-sm">
-              <h3 className="text-xl font-semibold mb-4">SMS Updates</h3>
+              <div className="flex items-center gap-3 mb-4">
+                <div className="p-2 rounded-full bg-primary/10">
+                  <MessageSquareText className="h-6 w-6 text-primary" />
+                </div>
+                <h3 className="text-xl font-semibold">SMS Updates</h3>
+              </div>
               <p className="text-muted-foreground">
                 Share updates via text message anytime, anywhere. It's that simple!
               </p>
             </div>
             <div className="bg-card p-6 rounded-lg shadow-sm">
-              <h3 className="text-xl font-semibold mb-4">AI Newsletters</h3>
+              <div className="flex items-center gap-3 mb-4">
+                <div className="p-2 rounded-full bg-primary/10">
+                  <Cpu className="h-6 w-6 text-primary" />
+                </div>
+                <h3 className="text-xl font-semibold">AI Newsletters</h3>
+              </div>
               <p className="text-muted-foreground">
                 Automatically generated newsletters that capture everyone's updates in a beautiful format.
               </p>
             </div>
             <div className="bg-card p-6 rounded-lg shadow-sm">
-              <h3 className="text-xl font-semibold mb-4">Smart Reminders</h3>
+              <div className="flex items-center gap-3 mb-4">
+                <div className="p-2 rounded-full bg-primary/10">
+                  <Bell className="h-6 w-6 text-primary" />
+                </div>
+                <h3 className="text-xl font-semibold">Smart Reminders</h3>
+              </div>
               <p className="text-muted-foreground">
                 Customizable reminder schedule to keep everyone engaged and sharing.
               </p>
@@ -87,8 +103,10 @@ export default function LandingPage() {
         <Accordion type="single" collapsible className="max-w-2xl mx-auto">
           {faqs.map((faq, index) => (
             <AccordionItem key={index} value={`item-${index}`}>
-              <AccordionTrigger>{faq.question}</AccordionTrigger>
-              <AccordionContent>{faq.answer}</AccordionContent>
+              <AccordionTrigger className="text-base">{faq.question}</AccordionTrigger>
+              <AccordionContent className="text-sm text-muted-foreground">
+                {faq.answer}
+              </AccordionContent>
             </AccordionItem>
           ))}
         </Accordion>
