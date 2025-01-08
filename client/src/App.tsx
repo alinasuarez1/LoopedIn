@@ -5,6 +5,7 @@ import LandingPage from "./pages/LandingPage";
 import AuthPage from "./pages/AuthPage";
 import Dashboard from "./pages/Dashboard";
 import LoopManager from "./pages/LoopManager";
+import ProfilePage from "./pages/ProfilePage";
 import { Navbar } from "./components/Navbar";
 
 function App() {
@@ -29,6 +30,7 @@ function App() {
           </Switch>
         ) : (
           <Switch>
+            <Route path="/profile" component={ProfilePage} />
             <Route path="/loops/:id" component={LoopManager} />
             <Route path="/" component={Dashboard} />
           </Switch>
