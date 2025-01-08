@@ -52,9 +52,12 @@ const DEFAULT_REMINDER_SCHEDULE = [
 ];
 
 const DAYS_OF_WEEK = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
-const TIME_OPTIONS = Array.from({ length: 24 }, (_, hour) =>
-  [`${hour.toString().padStart(2, '0')}:00`, `${hour.toString().padStart(2, '0')}:30`]
-).flat();
+// Generate time options in 5-minute intervals
+const TIME_OPTIONS = Array.from({ length: 24 * 12 }, (_, index) => {
+  const hour = Math.floor(index / 12);
+  const minute = (index % 12) * 5;
+  return `${hour.toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')}`;
+});
 
 export default function LoopManager() {
   const { id } = useParams<{ id: string }>();
