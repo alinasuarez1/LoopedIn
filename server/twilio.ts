@@ -74,11 +74,14 @@ export async function sendScheduledReminders() {
     minute: '2-digit'
   });
 
+  console.log(`Checking for reminders on ${currentDay} at ${currentTime}`);
+
   try {
     // Query all loops that have reminders scheduled for current day and time
+    // Cast the reminder_schedule to JSONB before using jsonb_array_elements
     const loopsToRemind = await db.query.loops.findMany({
       where: sql`EXISTS (
-        SELECT 1 FROM jsonb_array_elements(${loops.reminderSchedule}) as schedule
+        SELECT 1 FROM jsonb_array_elements(CAST(${loops.reminderSchedule} AS JSONB)) as schedule
         WHERE schedule->>'day' = ${currentDay}
         AND schedule->>'time' = ${currentTime}
       )`,
@@ -91,9 +94,13 @@ export async function sendScheduledReminders() {
       },
     });
 
+    console.log(`Found ${loopsToRemind.length} loops scheduled for reminders`);
+
     for (const loop of loopsToRemind) {
+      console.log(`Processing reminders for loop: ${loop.name}`);
       for (const member of loop.members) {
         if (member.user?.phoneNumber) {
+          console.log(`Sending reminder to ${member.user.phoneNumber}`);
           await sendReminder(member.user.phoneNumber, loop.name);
         }
       }
