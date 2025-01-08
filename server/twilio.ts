@@ -2,6 +2,7 @@ import twilio from 'twilio';
 import { db } from "@db";
 import { loops } from "@db/schema";
 import { sql } from "drizzle-orm";
+import { formatInTimeZone } from 'date-fns-tz';
 
 const hasCredentials = !!(process.env.TWILIO_ACCOUNT_SID && process.env.TWILIO_AUTH_TOKEN && process.env.TWILIO_PHONE_NUMBER);
 let client: ReturnType<typeof twilio> | null = null;
@@ -67,14 +68,11 @@ export async function sendScheduledReminders() {
   }
 
   const now = new Date();
-  const currentDay = now.toLocaleDateString('en-US', { weekday: 'long' });
-  const currentTime = now.toLocaleTimeString('en-US', { 
-    hour12: false, 
-    hour: '2-digit', 
-    minute: '2-digit'
-  });
+  // Get current day and time in Eastern Time
+  const currentDay = formatInTimeZone(now, 'America/New_York', 'EEEE');
+  const currentTime = formatInTimeZone(now, 'America/New_York', 'HH:mm');
 
-  console.log(`Checking for reminders on ${currentDay} at ${currentTime}`);
+  console.log(`Checking for reminders on ${currentDay} at ${currentTime} Eastern Time`);
 
   try {
     // Query all loops that have reminders scheduled for current day and time
@@ -106,7 +104,7 @@ export async function sendScheduledReminders() {
       }
     }
 
-    console.log(`Sent reminders for ${loopsToRemind.length} loops on ${currentDay} at ${currentTime}`);
+    console.log(`Sent reminders for ${loopsToRemind.length} loops on ${currentDay} at ${currentTime} Eastern Time`);
   } catch (error) {
     console.error('Error sending scheduled reminders:', error);
   }
