@@ -26,6 +26,17 @@ import 'react-phone-input-2/lib/style.css';
 import { useState } from "react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 
 type AddMemberForm = {
   firstName: string;
@@ -47,7 +58,7 @@ const TIME_OPTIONS = Array.from({ length: 24 }, (_, hour) =>
 
 export default function LoopManager() {
   const { id } = useParams<{ id: string }>();
-  const { loop, isLoading, updateLoop } = useLoop(parseInt(id));
+  const { loop, isLoading, updateLoop, deleteLoop } = useLoop(parseInt(id));
   const { toast } = useToast();
   const form = useForm<AddMemberForm>();
   const [phone, setPhone] = useState("");
@@ -254,7 +265,47 @@ export default function LoopManager() {
               )}
             </TabsContent>
             <TabsContent value="settings" className="mt-4">
-              <h3 className="text-lg font-semibold mb-4">Loop Settings</h3>
+              <div className="flex justify-between items-center mb-4">
+                <h3 className="text-lg font-semibold">Loop Settings</h3>
+                <AlertDialog>
+                  <AlertDialogTrigger asChild>
+                    <Button variant="destructive">Delete Loop</Button>
+                  </AlertDialogTrigger>
+                  <AlertDialogContent>
+                    <AlertDialogHeader>
+                      <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+                      <AlertDialogDescription>
+                        This action cannot be undone. This will permanently delete the loop
+                        and remove all data associated with it.
+                      </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                      <AlertDialogCancel>Cancel</AlertDialogCancel>
+                      <AlertDialogAction
+                        onClick={async () => {
+                          try {
+                            await deleteLoop(loop.id);
+                            toast({
+                              title: "Success",
+                              description: "Loop deleted successfully",
+                            });
+                            setLocation('/');
+                          } catch (error) {
+                            toast({
+                              title: "Error",
+                              description: error instanceof Error ? error.message : "Failed to delete loop",
+                              variant: "destructive",
+                            });
+                          }
+                        }}
+                        className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                      >
+                        Delete
+                      </AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
+              </div>
               <div className="space-y-6">
                 <div>
                   <Label>Newsletter Frequency</Label>
