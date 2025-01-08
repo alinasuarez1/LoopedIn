@@ -33,6 +33,12 @@ const vibeOptions = [
   { label: "Deep", value: "deep" },
 ];
 
+const DEFAULT_REMINDER_SCHEDULE = [
+  { day: 'Wednesday', time: '09:00' },
+  { day: 'Friday', time: '17:00' },
+  { day: 'Sunday', time: '17:00' },
+];
+
 type CreateLoopForm = {
   name: string;
   frequency: "biweekly" | "monthly";
@@ -62,7 +68,7 @@ export default function Dashboard() {
         ...data,
         vibe: selectedVibes,
         creatorId: user!.id,
-        reminderSchedule: ["Wednesday", "Friday", "Sunday"],
+        reminderSchedule: DEFAULT_REMINDER_SCHEDULE,
       });
 
       toast({
