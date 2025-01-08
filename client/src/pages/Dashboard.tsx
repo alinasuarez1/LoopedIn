@@ -73,9 +73,9 @@ export default function Dashboard() {
 
       toast({
         title: "Success",
-        description: "Loop created successfully!" + 
-          (response.smsStatus === 'disabled' 
-            ? " SMS notifications are currently disabled." 
+        description: "Loop created successfully!" +
+          (response.smsStatus === 'disabled'
+            ? " SMS notifications are currently disabled."
             : ""),
       });
 
@@ -190,61 +190,63 @@ export default function Dashboard() {
   );
 
   return (
-    <div className="container mx-auto p-4">
-      <div className="flex justify-between items-center mb-8">
-        <h1 className="text-3xl font-bold">My Loops</h1>
-        <CreateLoopDialog />
-      </div>
-
-      {!loops?.length ? (
-        <Card className="text-center py-12">
-          <CardContent>
-            <div className="flex flex-col items-center space-y-4">
-              <div className="p-4 rounded-full bg-primary/10">
-                <Users2 className="h-12 w-12 text-primary" />
-              </div>
-              <h2 className="text-2xl font-semibold">Create Your First Loop</h2>
-              <p className="text-muted-foreground max-w-md mx-auto mb-6">
-                Start by creating a Loop to keep your group connected. Share updates via text and let us generate beautiful newsletters automatically.
-              </p>
-              <div className="flex flex-col sm:flex-row gap-4 items-center justify-center text-sm text-muted-foreground">
-                <div className="flex items-center gap-2">
-                  <MessageCircle className="h-4 w-4" />
-                  <span>Share updates via SMS</span>
-                </div>
-                <div className="hidden sm:block">•</div>
-                <div className="flex items-center gap-2">
-                  <Users2 className="h-4 w-4" />
-                  <span>Connect with your group</span>
-                </div>
-              </div>
-              <CreateLoopDialog />
-            </div>
-          </CardContent>
-        </Card>
-      ) : (
-        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {loops.map((loop) => (
-            <Link key={loop.id} href={`/loops/${loop.id}`}>
-              <Card className="cursor-pointer hover:shadow-lg transition-shadow">
-                <CardHeader>
-                  <CardTitle>{loop.name}</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <p className="text-sm text-muted-foreground">
-                    Frequency: {loop.frequency}
-                  </p>
-                  {loop.context && (
-                    <p className="text-sm text-muted-foreground mt-2">
-                      {loop.context}
-                    </p>
-                  )}
-                </CardContent>
-              </Card>
-            </Link>
-          ))}
+    <div className="min-h-screen bg-orange-50/50">
+      <div className="container mx-auto p-4">
+        <div className="flex justify-between items-center mb-8">
+          <h1 className="text-3xl font-bold">My Loops</h1>
+          <CreateLoopDialog />
         </div>
-      )}
+
+        {!loops?.length ? (
+          <Card className="text-center py-12">
+            <CardContent>
+              <div className="flex flex-col items-center space-y-4">
+                <div className="p-4 rounded-full bg-primary/10">
+                  <Users2 className="h-12 w-12 text-primary" />
+                </div>
+                <h2 className="text-2xl font-semibold">Create Your First Loop</h2>
+                <p className="text-muted-foreground max-w-md mx-auto mb-6">
+                  Start by creating a Loop to keep your group connected. Share updates via text and let us generate beautiful newsletters automatically.
+                </p>
+                <div className="flex flex-col sm:flex-row gap-4 items-center justify-center text-sm text-muted-foreground">
+                  <div className="flex items-center gap-2">
+                    <MessageCircle className="h-4 w-4" />
+                    <span>Share updates via SMS</span>
+                  </div>
+                  <div className="hidden sm:block">•</div>
+                  <div className="flex items-center gap-2">
+                    <Users2 className="h-4 w-4" />
+                    <span>Connect with your group</span>
+                  </div>
+                </div>
+                <CreateLoopDialog />
+              </div>
+            </CardContent>
+          </Card>
+        ) : (
+          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {loops.map((loop) => (
+              <Link key={loop.id} href={`/loops/${loop.id}`}>
+                <Card className="cursor-pointer hover:shadow-lg transition-shadow">
+                  <CardHeader>
+                    <CardTitle>{loop.name}</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <p className="text-sm text-muted-foreground">
+                      Frequency: {loop.frequency}
+                    </p>
+                    {loop.context && (
+                      <p className="text-sm text-muted-foreground mt-2">
+                        {loop.context}
+                      </p>
+                    )}
+                  </CardContent>
+                </Card>
+              </Link>
+            ))}
+          </div>
+        )}
+      </div>
     </div>
   );
 }
