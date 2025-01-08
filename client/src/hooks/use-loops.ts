@@ -66,8 +66,9 @@ export function useLoops() {
         throw new Error(await res.text());
       }
     },
-    onSuccess: () => {
+    onSuccess: (_, id) => {
       queryClient.invalidateQueries({ queryKey: ["/api/loops"] });
+      queryClient.invalidateQueries({ queryKey: [`/api/loops/${id}`] });
     },
   });
 
@@ -120,6 +121,8 @@ export function useLoop(id: number) {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/loops"] });
+      queryClient.invalidateQueries({ queryKey: [`/api/loops/${id}`] });
+      queryClient.removeQueries({ queryKey: [`/api/loops/${id}`] });
     },
   });
 
