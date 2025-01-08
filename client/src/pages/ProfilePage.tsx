@@ -1,9 +1,12 @@
 import { useUser } from "../hooks/use-user";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
-import { Loader2 } from "lucide-react";
+import { Loader2, ArrowLeft } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { useLocation } from "wouter";
 
 export default function ProfilePage() {
   const { user, isLoading } = useUser();
+  const [, setLocation] = useLocation();
 
   if (isLoading || !user) {
     return (
@@ -15,6 +18,14 @@ export default function ProfilePage() {
 
   return (
     <div className="container mx-auto p-4">
+      <Button 
+        variant="ghost" 
+        className="mb-4" 
+        onClick={() => setLocation('/')}
+      >
+        <ArrowLeft className="h-4 w-4 mr-2" />
+        Back to Dashboard
+      </Button>
       <Card className="max-w-2xl mx-auto">
         <CardHeader>
           <CardTitle>Profile</CardTitle>
