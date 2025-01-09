@@ -260,21 +260,12 @@ export default function LoopManager() {
                   </div>
                   <div className="w-full">
                     {(() => {
-                      if (!loop.newsletters?.length) {
-                        return (
-                          <Card>
-                            <CardContent className="py-4">
-                              <p className="text-center text-muted-foreground">
-                                {`No newsletters yet. The first ${loop.frequency} newsletter will be generated when members share their updates.`}
-                              </p>
-                            </CardContent>
-                          </Card>
-                        );
-                      }
-
-                      const lastNewsletter = loop.newsletters[loop.newsletters.length - 1];
-                      const lastSentDate = new Date(lastNewsletter.sentAt!);
-                      const nextNewsletterDate = new Date(lastSentDate);
+                      // Calculate the next newsletter date based on either creation date or last newsletter
+                      const lastNewsletter = loop.newsletters?.[loop.newsletters.length - 1];
+                      const baseDate = lastNewsletter 
+                        ? new Date(lastNewsletter.sentAt!)
+                        : new Date(loop.createdAt!);
+                      const nextNewsletterDate = new Date(baseDate);
 
                       // Add days based on frequency
                       if (loop.frequency === 'biweekly') {
@@ -293,7 +284,9 @@ export default function LoopManager() {
                           <CardContent className="py-4">
                             <div className="flex items-center justify-between">
                               <div>
-                                <p className="text-sm font-medium">Next Newsletter</p>
+                                <p className="text-sm font-medium">
+                                  {lastNewsletter ? "Next Newsletter" : "First Newsletter"}
+                                </p>
                                 <p className="text-2xl font-bold mt-1">
                                   {isOverdue ? (
                                     <span className="text-destructive">
@@ -319,6 +312,7 @@ export default function LoopManager() {
                     })()}
                   </div>
                 </div>
+
                 {loop.newsletters?.length > 0 && (
                   <div className="space-y-4">
                     {loop.newsletters.map((newsletter) => (
