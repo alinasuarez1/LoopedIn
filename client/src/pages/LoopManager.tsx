@@ -158,11 +158,11 @@ export default function LoopManager() {
             />
           </div>
           <div className="space-y-2">
-            <Label htmlFor="email">Email</Label>
+            <Label htmlFor="email">Email (Optional)</Label>
             <Input
               id="email"
               type="email"
-              {...form.register("email", { required: true })}
+              {...form.register("email")}
             />
           </div>
           <div className="space-y-2">
