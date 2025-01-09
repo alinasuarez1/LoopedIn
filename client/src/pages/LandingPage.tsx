@@ -39,7 +39,7 @@ export default function LandingPage() {
   return (
     <div className="min-h-screen bg-background">
       {/* Hero Section */}
-      <section className="bg-orange-50/50">
+      <section className="bg-orange-100/50">
         <div className="container mx-auto px-4 py-24 text-center">
           <h1 className="text-5xl font-bold tracking-tight mb-6 max-w-3xl mx-auto">
             Stay in the Loop—Effortlessly Collect Updates and News from your group!
