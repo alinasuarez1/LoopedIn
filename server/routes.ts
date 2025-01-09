@@ -318,27 +318,46 @@ export function registerRoutes(app: Express): Server {
     const { firstName, lastName, email, phoneNumber, context } = req.body;
 
     try {
-      // Generate a random temporary password
-      const tempPassword = randomBytes(16).toString('hex');
+      // First check if user already exists with this phone number
+      let memberUser = await db.query.users.findFirst({
+        where: eq(users.phoneNumber, phoneNumber),
+      });
 
-      // Create user first
-      const [newUser] = await db
-        .insert(users)
-        .values({
-          firstName,
-          lastName,
-          email: email || null,
-          phoneNumber,
-          password: tempPassword, // They'll need to reset this later
-        })
-        .returning();
+      if (!memberUser) {
+        // Generate a random temporary password for new users
+        const tempPassword = randomBytes(16).toString('hex');
 
-      // Then create loop member
+        // Create new user if they don't exist
+        [memberUser] = await db
+          .insert(users)
+          .values({
+            firstName,
+            lastName,
+            email: email || null,
+            phoneNumber,
+            password: tempPassword, // They'll need to reset this later
+          })
+          .returning();
+      }
+
+      // Check if they're already a member of this loop
+      const existingMembership = await db.query.loopMembers.findFirst({
+        where: and(
+          eq(loopMembers.loopId, parseInt(req.params.id)),
+          eq(loopMembers.userId, memberUser.id)
+        ),
+      });
+
+      if (existingMembership) {
+        return res.status(400).send("User is already a member of this loop");
+      }
+
+      // Create loop membership
       const [member] = await db
         .insert(loopMembers)
         .values({
           loopId: parseInt(req.params.id),
-          userId: newUser.id,
+          userId: memberUser.id,
           context,
         })
         .returning();
