@@ -1,3 +1,5 @@
+import { useQueryClient } from "@tanstack/react-query";
+import { useState } from 'react';
 import { useLoop } from "../hooks/use-loops";
 import { useParams, useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
@@ -23,7 +25,6 @@ import { Label } from "@/components/ui/label";
 import { useForm } from "react-hook-form";
 import PhoneInput from 'react-phone-input-2';
 import 'react-phone-input-2/lib/style.css';
-import { useState } from "react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
@@ -41,7 +42,7 @@ import {
 type AddMemberForm = {
   firstName: string;
   lastName: string;
-  email: string;
+  email?: string;
   context?: string;
 };
 
@@ -81,6 +82,7 @@ export default function LoopManager() {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [, setLocation] = useLocation();
   const [isEditingSettings, setIsEditingSettings] = useState(false);
+  const queryClient = useQueryClient();
   const settingsForm = useForm<LoopSettingsForm>({
     defaultValues: {
       context: loop?.context,
@@ -105,6 +107,9 @@ export default function LoopManager() {
       if (!response.ok) {
         throw new Error(await response.text());
       }
+
+      // Invalidate and refetch loop data
+      await queryClient.invalidateQueries({ queryKey: [`/api/loops/${id}`] });
 
       toast({
         title: "Success",
@@ -274,12 +279,19 @@ export default function LoopManager() {
                     {loop.members.map((member) => (
                       <Card key={member.id}>
                         <CardContent className="pt-4">
-                          <p>{member.user?.firstName} {member.user?.lastName}</p>
-                          {member.context && (
-                            <p className="text-sm text-muted-foreground mt-1">
-                              {member.context}
+                          <div className="flex flex-col gap-1">
+                            <p className="font-medium">
+                              {member.user?.firstName} {member.user?.lastName}
                             </p>
-                          )}
+                            {member.context && (
+                              <p className="text-sm text-muted-foreground">
+                                {member.context}
+                              </p>
+                            )}
+                            <p className="text-sm text-muted-foreground">
+                              {member.user?.phoneNumber}
+                            </p>
+                          </div>
                         </CardContent>
                       </Card>
                     ))}
