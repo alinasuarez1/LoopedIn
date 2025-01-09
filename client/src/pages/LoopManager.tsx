@@ -45,6 +45,11 @@ type AddMemberForm = {
   context?: string;
 };
 
+type LoopSettingsForm = {
+  context?: string;
+  vibe: string[];
+};
+
 const DEFAULT_REMINDER_SCHEDULE = [
   { day: 'Wednesday', time: '09:00' },
   { day: 'Friday', time: '17:00' },
@@ -59,6 +64,14 @@ const TIME_OPTIONS = Array.from({ length: 24 * 12 }, (_, index) => {
   return `${hour.toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')}`;
 });
 
+const vibeOptions = [
+  { value: 'informative', label: 'Informative' },
+  { value: 'promotional', label: 'Promotional' },
+  { value: 'engaging', label: 'Engaging' },
+  { value: 'fun', label: 'Fun' },
+  // Add more vibe options as needed
+];
+
 export default function LoopManager() {
   const { id } = useParams<{ id: string }>();
   const { loop, isLoading, updateLoop, deleteLoop } = useLoop(parseInt(id));
@@ -67,6 +80,13 @@ export default function LoopManager() {
   const [phone, setPhone] = useState("");
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [, setLocation] = useLocation();
+  const [isEditingSettings, setIsEditingSettings] = useState(false);
+  const settingsForm = useForm<LoopSettingsForm>({
+    defaultValues: {
+      context: loop?.context,
+      vibe: loop?.vibe || [],
+    },
+  });
 
   const onSubmit = async (data: AddMemberForm) => {
     try {
@@ -271,44 +291,90 @@ export default function LoopManager() {
               <TabsContent value="settings" className="mt-4">
                 <div className="flex justify-between items-center mb-4">
                   <h3 className="text-lg font-semibold">Loop Settings</h3>
-                  <AlertDialog>
-                    <AlertDialogTrigger asChild>
-                      <Button variant="destructive">Delete Loop</Button>
-                    </AlertDialogTrigger>
-                    <AlertDialogContent>
-                      <AlertDialogHeader>
-                        <AlertDialogTitle>Are you sure?</AlertDialogTitle>
-                        <AlertDialogDescription>
-                          This action cannot be undone. This will permanently delete the loop
-                          and remove all data associated with it.
-                        </AlertDialogDescription>
-                      </AlertDialogHeader>
-                      <AlertDialogFooter>
-                        <AlertDialogCancel>Cancel</AlertDialogCancel>
-                        <AlertDialogAction
-                          onClick={async () => {
+                  <div className="flex gap-2">
+                    {isEditingSettings ? (
+                      <>
+                        <Button
+                          variant="outline"
+                          onClick={() => {
+                            setIsEditingSettings(false);
+                            settingsForm.reset({
+                              context: loop.context,
+                              vibe: loop.vibe,
+                            });
+                          }}
+                        >
+                          Cancel
+                        </Button>
+                        <Button
+                          onClick={settingsForm.handleSubmit(async (data) => {
                             try {
-                              await deleteLoop(loop.id);
+                              await updateLoop({
+                                ...loop,
+                                context: data.context,
+                                vibe: data.vibe,
+                              });
                               toast({
                                 title: "Success",
-                                description: "Loop deleted successfully",
+                                description: "Loop settings updated successfully!",
                               });
-                              setLocation('/');
+                              setIsEditingSettings(false);
                             } catch (error) {
                               toast({
                                 title: "Error",
-                                description: error instanceof Error ? error.message : "Failed to delete loop",
+                                description: error instanceof Error ? error.message : "Failed to update loop settings",
                                 variant: "destructive",
                               });
                             }
-                          }}
-                          className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                          })}
                         >
-                          Delete
-                        </AlertDialogAction>
-                      </AlertDialogFooter>
-                    </AlertDialogContent>
-                  </AlertDialog>
+                          Save Changes
+                        </Button>
+                      </>
+                    ) : (
+                      <Button onClick={() => setIsEditingSettings(true)}>
+                        Edit Settings
+                      </Button>
+                    )}
+                    <AlertDialog>
+                      <AlertDialogTrigger asChild>
+                        <Button variant="destructive">Delete Loop</Button>
+                      </AlertDialogTrigger>
+                      <AlertDialogContent>
+                        <AlertDialogHeader>
+                          <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+                          <AlertDialogDescription>
+                            This action cannot be undone. This will permanently delete the loop
+                            and remove all data associated with it.
+                          </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                          <AlertDialogCancel>Cancel</AlertDialogCancel>
+                          <AlertDialogAction
+                            onClick={async () => {
+                              try {
+                                await deleteLoop(loop.id);
+                                toast({
+                                  title: "Success",
+                                  description: "Loop deleted successfully",
+                                });
+                                setLocation('/');
+                              } catch (error) {
+                                toast({
+                                  title: "Error",
+                                  description: error instanceof Error ? error.message : "Failed to delete loop",
+                                  variant: "destructive",
+                                });
+                              }
+                            }}
+                            className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                          >
+                            Delete
+                          </AlertDialogAction>
+                        </AlertDialogFooter>
+                      </AlertDialogContent>
+                    </AlertDialog>
+                  </div>
                 </div>
                 <div className="space-y-6">
                   <div>
@@ -317,14 +383,48 @@ export default function LoopManager() {
                   </div>
                   <div>
                     <Label>Newsletter Vibe</Label>
-                    <p className="text-muted-foreground">{loop.vibe.join(", ")}</p>
+                    {isEditingSettings ? (
+                      <div className="grid grid-cols-2 gap-4 mt-2">
+                        {vibeOptions.map((vibe) => (
+                          <div key={vibe.value} className="flex items-center space-x-2">
+                            <Checkbox
+                              id={`vibe-${vibe.value}`}
+                              checked={settingsForm.watch("vibe").includes(vibe.value)}
+                              onCheckedChange={(checked) => {
+                                const currentVibes = settingsForm.watch("vibe");
+                                settingsForm.setValue(
+                                  "vibe",
+                                  checked
+                                    ? [...currentVibes, vibe.value]
+                                    : currentVibes.filter(v => v !== vibe.value)
+                                );
+                              }}
+                            />
+                            <label
+                              htmlFor={`vibe-${vibe.value}`}
+                              className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                            >
+                              {vibe.label}
+                            </label>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <p className="text-muted-foreground">{loop.vibe.join(", ")}</p>
+                    )}
                   </div>
-                  {loop.context && (
-                    <div>
-                      <Label>Group Context</Label>
-                      <p className="text-muted-foreground">{loop.context}</p>
-                    </div>
-                  )}
+                  <div>
+                    <Label>Group Context</Label>
+                    {isEditingSettings ? (
+                      <Input
+                        className="mt-2"
+                        {...settingsForm.register("context")}
+                        placeholder="What brings your group together?"
+                      />
+                    ) : (
+                      <p className="text-muted-foreground">{loop.context || "No context provided"}</p>
+                    )}
+                  </div>
                   <div>
                     <Label>Reminder Schedule</Label>
                     <div className="mt-2 space-y-2">
