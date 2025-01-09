@@ -254,7 +254,49 @@ export default function LoopManager() {
                 )}
               </TabsContent>
               <TabsContent value="newsletters" className="mt-4">
-                <h3 className="text-lg font-semibold mb-4">Newsletters</h3>
+                <div className="flex justify-between items-center mb-4">
+                  <h3 className="text-lg font-semibold">Newsletters</h3>
+                  {loop.newsletters?.length > 0 && (
+                    <div>
+                      {(() => {
+                        const lastNewsletter = loop.newsletters[loop.newsletters.length - 1];
+                        const lastSentDate = new Date(lastNewsletter.sentAt!);
+                        const nextNewsletterDate = new Date(lastSentDate);
+
+                        // Add days based on frequency
+                        if (loop.frequency === 'biweekly') {
+                          nextNewsletterDate.setDate(nextNewsletterDate.getDate() + 14);
+                        } else if (loop.frequency === 'monthly') {
+                          nextNewsletterDate.setMonth(nextNewsletterDate.getMonth() + 1);
+                        }
+
+                        const now = new Date();
+                        const diffTime = Math.abs(nextNewsletterDate.getTime() - now.getTime());
+                        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+                        const isOverdue = nextNewsletterDate < now;
+
+                        return (
+                          <Card className="bg-muted">
+                            <CardContent className="py-2 px-4">
+                              <p className="text-sm">
+                                {isOverdue ? (
+                                  <span className="text-destructive font-medium">
+                                    Newsletter is overdue by {diffDays} days
+                                  </span>
+                                ) : (
+                                  <span>
+                                    Next newsletter in{' '}
+                                    <span className="font-medium">{diffDays} days</span>
+                                  </span>
+                                )}
+                              </p>
+                            </CardContent>
+                          </Card>
+                        );
+                      })()}
+                    </div>
+                  )}
+                </div>
                 {loop.newsletters?.length ? (
                   <div className="space-y-4">
                     {loop.newsletters.map((newsletter) => (
@@ -269,7 +311,13 @@ export default function LoopManager() {
                     ))}
                   </div>
                 ) : (
-                  <p className="text-muted-foreground">No newsletters yet.</p>
+                  <Card>
+                    <CardContent className="py-8 text-center">
+                      <p className="text-muted-foreground">
+                        {`No newsletters yet. The first ${loop.frequency} newsletter will be generated when members share their updates.`}
+                      </p>
+                    </CardContent>
+                  </Card>
                 )}
               </TabsContent>
               <TabsContent value="members" className="mt-4">
