@@ -174,243 +174,245 @@ export default function LoopManager() {
   );
 
   return (
-    <div className="container mx-auto p-4">
-      <Button
-        variant="ghost"
-        className="mb-4"
-        onClick={() => setLocation('/')}
-      >
-        <ArrowLeft className="h-4 w-4 mr-2" />
-        Back to Dashboard
-      </Button>
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between">
-          <div>
-            <CardTitle>{loop.name}</CardTitle>
-            <CardDescription>
-              Created on {new Date(loop.createdAt!).toLocaleDateString()}
-            </CardDescription>
-          </div>
-          <AddMemberDialog />
-        </CardHeader>
-        <CardContent>
-          <Tabs defaultValue="updates">
-            <TabsList className="grid w-full grid-cols-4">
-              <TabsTrigger value="updates">Updates</TabsTrigger>
-              <TabsTrigger value="newsletters">Newsletters</TabsTrigger>
-              <TabsTrigger value="members">Members</TabsTrigger>
-              <TabsTrigger value="settings">Settings</TabsTrigger>
-            </TabsList>
-            <TabsContent value="updates" className="mt-4">
-              <h3 className="text-lg font-semibold mb-4">Recent Updates</h3>
-              {loop.updates?.length ? (
-                <div className="space-y-4">
-                  {loop.updates.map((update) => (
-                    <Card key={update.id}>
-                      <CardContent className="pt-4">
-                        <p className="text-sm text-muted-foreground">
-                          {new Date(update.createdAt!).toLocaleString()}
-                        </p>
-                        <p className="mt-2">{update.content}</p>
-                        {update.mediaUrl && (
-                          <img
-                            src={update.mediaUrl}
-                            alt="Update media"
-                            className="mt-2 rounded-md max-w-sm"
-                          />
-                        )}
-                      </CardContent>
-                    </Card>
-                  ))}
-                </div>
-              ) : (
-                <p className="text-muted-foreground">No updates yet.</p>
-              )}
-            </TabsContent>
-            <TabsContent value="newsletters" className="mt-4">
-              <h3 className="text-lg font-semibold mb-4">Newsletters</h3>
-              {loop.newsletters?.length ? (
-                <div className="space-y-4">
-                  {loop.newsletters.map((newsletter) => (
-                    <Card key={newsletter.id}>
-                      <CardContent className="pt-4">
-                        <p className="text-sm text-muted-foreground">
-                          Sent on {new Date(newsletter.sentAt!).toLocaleString()}
-                        </p>
-                        <div className="mt-2 prose" dangerouslySetInnerHTML={{ __html: newsletter.content }} />
-                      </CardContent>
-                    </Card>
-                  ))}
-                </div>
-              ) : (
-                <p className="text-muted-foreground">No newsletters yet.</p>
-              )}
-            </TabsContent>
-            <TabsContent value="members" className="mt-4">
-              <h3 className="text-lg font-semibold mb-4">Members</h3>
-              {loop.members?.length ? (
-                <div className="space-y-4">
-                  {loop.members.map((member) => (
-                    <Card key={member.id}>
-                      <CardContent className="pt-4">
-                        <p>{member.user?.firstName} {member.user?.lastName}</p>
-                        {member.context && (
-                          <p className="text-sm text-muted-foreground mt-1">
-                            {member.context}
+    <div className="min-h-screen bg-orange-100/50">
+      <div className="container mx-auto p-4">
+        <Button
+          variant="ghost"
+          className="mb-4"
+          onClick={() => setLocation('/')}
+        >
+          <ArrowLeft className="h-4 w-4 mr-2" />
+          Back to Dashboard
+        </Button>
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between">
+            <div>
+              <CardTitle>{loop.name}</CardTitle>
+              <CardDescription>
+                Created on {new Date(loop.createdAt!).toLocaleDateString()}
+              </CardDescription>
+            </div>
+            <AddMemberDialog />
+          </CardHeader>
+          <CardContent>
+            <Tabs defaultValue="updates">
+              <TabsList className="grid w-full grid-cols-4">
+                <TabsTrigger value="updates">Updates</TabsTrigger>
+                <TabsTrigger value="newsletters">Newsletters</TabsTrigger>
+                <TabsTrigger value="members">Members</TabsTrigger>
+                <TabsTrigger value="settings">Settings</TabsTrigger>
+              </TabsList>
+              <TabsContent value="updates" className="mt-4">
+                <h3 className="text-lg font-semibold mb-4">Recent Updates</h3>
+                {loop.updates?.length ? (
+                  <div className="space-y-4">
+                    {loop.updates.map((update) => (
+                      <Card key={update.id}>
+                        <CardContent className="pt-4">
+                          <p className="text-sm text-muted-foreground">
+                            {new Date(update.createdAt!).toLocaleString()}
                           </p>
-                        )}
-                      </CardContent>
-                    </Card>
-                  ))}
-                </div>
-              ) : (
-                <p className="text-muted-foreground">No members yet.</p>
-              )}
-            </TabsContent>
-            <TabsContent value="settings" className="mt-4">
-              <div className="flex justify-between items-center mb-4">
-                <h3 className="text-lg font-semibold">Loop Settings</h3>
-                <AlertDialog>
-                  <AlertDialogTrigger asChild>
-                    <Button variant="destructive">Delete Loop</Button>
-                  </AlertDialogTrigger>
-                  <AlertDialogContent>
-                    <AlertDialogHeader>
-                      <AlertDialogTitle>Are you sure?</AlertDialogTitle>
-                      <AlertDialogDescription>
-                        This action cannot be undone. This will permanently delete the loop
-                        and remove all data associated with it.
-                      </AlertDialogDescription>
-                    </AlertDialogHeader>
-                    <AlertDialogFooter>
-                      <AlertDialogCancel>Cancel</AlertDialogCancel>
-                      <AlertDialogAction
-                        onClick={async () => {
-                          try {
-                            await deleteLoop(loop.id);
-                            toast({
-                              title: "Success",
-                              description: "Loop deleted successfully",
-                            });
-                            setLocation('/');
-                          } catch (error) {
-                            toast({
-                              title: "Error",
-                              description: error instanceof Error ? error.message : "Failed to delete loop",
-                              variant: "destructive",
-                            });
-                          }
-                        }}
-                        className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                      >
-                        Delete
-                      </AlertDialogAction>
-                    </AlertDialogFooter>
-                  </AlertDialogContent>
-                </AlertDialog>
-              </div>
-              <div className="space-y-6">
-                <div>
-                  <Label>Newsletter Frequency</Label>
-                  <p className="text-muted-foreground">{loop.frequency}</p>
-                </div>
-                <div>
-                  <Label>Newsletter Vibe</Label>
-                  <p className="text-muted-foreground">{loop.vibe.join(", ")}</p>
-                </div>
-                {loop.context && (
-                  <div>
-                    <Label>Group Context</Label>
-                    <p className="text-muted-foreground">{loop.context}</p>
-                  </div>
-                )}
-                <div>
-                  <Label>Reminder Schedule</Label>
-                  <div className="mt-2 space-y-2">
-                    {DAYS_OF_WEEK.map((day) => {
-                      const reminderForDay = loop.reminderSchedule.find(r => r.day === day);
-                      return (
-                        <div key={day} className="flex items-center space-x-4">
-                          <div className="flex items-center space-x-2 min-w-[200px]">
-                            <Checkbox
-                              id={day}
-                              checked={!!reminderForDay}
-                              onCheckedChange={async (checked) => {
-                                try {
-                                  const newSchedule = checked
-                                    ? [...loop.reminderSchedule, { day, time: '09:00' }]
-                                    : loop.reminderSchedule.filter(r => r.day !== day);
-
-                                  await updateLoop({
-                                    reminderSchedule: newSchedule,
-                                  });
-
-                                  toast({
-                                    title: "Success",
-                                    description: "Reminder schedule updated successfully!",
-                                  });
-                                } catch (error) {
-                                  toast({
-                                    title: "Error",
-                                    description: error instanceof Error ? error.message : "Failed to update reminder schedule",
-                                    variant: "destructive",
-                                  });
-                                }
-                              }}
+                          <p className="mt-2">{update.content}</p>
+                          {update.mediaUrl && (
+                            <img
+                              src={update.mediaUrl}
+                              alt="Update media"
+                              className="mt-2 rounded-md max-w-sm"
                             />
-                            <Label htmlFor={day}>{day}</Label>
-                          </div>
-                          {reminderForDay && (
-                            <Select
-                              value={reminderForDay.time}
-                              onValueChange={async (newTime) => {
-                                try {
-                                  const newSchedule = loop.reminderSchedule.map(r =>
-                                    r.day === day ? { ...r, time: newTime } : r
-                                  );
-
-                                  await updateLoop({
-                                    reminderSchedule: newSchedule,
-                                  });
-
-                                  toast({
-                                    title: "Success",
-                                    description: "Reminder time updated successfully!",
-                                  });
-                                } catch (error) {
-                                  toast({
-                                    title: "Error",
-                                    description: error instanceof Error ? error.message : "Failed to update reminder time",
-                                    variant: "destructive",
-                                  });
-                                }
-                              }}
-                            >
-                              <SelectTrigger className="w-[180px]">
-                                <SelectValue placeholder="Select time" />
-                              </SelectTrigger>
-                              <SelectContent>
-                                {TIME_OPTIONS.map((time) => (
-                                  <SelectItem key={time} value={time}>
-                                    {time}
-                                  </SelectItem>
-                                ))}
-                              </SelectContent>
-                            </Select>
                           )}
-                        </div>
-                      );
-                    })}
+                        </CardContent>
+                      </Card>
+                    ))}
                   </div>
-                  <p className="text-sm text-muted-foreground mt-2">
-                    Select the days and times when members will receive SMS reminders to share their updates.
-                  </p>
+                ) : (
+                  <p className="text-muted-foreground">No updates yet.</p>
+                )}
+              </TabsContent>
+              <TabsContent value="newsletters" className="mt-4">
+                <h3 className="text-lg font-semibold mb-4">Newsletters</h3>
+                {loop.newsletters?.length ? (
+                  <div className="space-y-4">
+                    {loop.newsletters.map((newsletter) => (
+                      <Card key={newsletter.id}>
+                        <CardContent className="pt-4">
+                          <p className="text-sm text-muted-foreground">
+                            Sent on {new Date(newsletter.sentAt!).toLocaleString()}
+                          </p>
+                          <div className="mt-2 prose" dangerouslySetInnerHTML={{ __html: newsletter.content }} />
+                        </CardContent>
+                      </Card>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-muted-foreground">No newsletters yet.</p>
+                )}
+              </TabsContent>
+              <TabsContent value="members" className="mt-4">
+                <h3 className="text-lg font-semibold mb-4">Members</h3>
+                {loop.members?.length ? (
+                  <div className="space-y-4">
+                    {loop.members.map((member) => (
+                      <Card key={member.id}>
+                        <CardContent className="pt-4">
+                          <p>{member.user?.firstName} {member.user?.lastName}</p>
+                          {member.context && (
+                            <p className="text-sm text-muted-foreground mt-1">
+                              {member.context}
+                            </p>
+                          )}
+                        </CardContent>
+                      </Card>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-muted-foreground">No members yet.</p>
+                )}
+              </TabsContent>
+              <TabsContent value="settings" className="mt-4">
+                <div className="flex justify-between items-center mb-4">
+                  <h3 className="text-lg font-semibold">Loop Settings</h3>
+                  <AlertDialog>
+                    <AlertDialogTrigger asChild>
+                      <Button variant="destructive">Delete Loop</Button>
+                    </AlertDialogTrigger>
+                    <AlertDialogContent>
+                      <AlertDialogHeader>
+                        <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                          This action cannot be undone. This will permanently delete the loop
+                          and remove all data associated with it.
+                        </AlertDialogDescription>
+                      </AlertDialogHeader>
+                      <AlertDialogFooter>
+                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+                        <AlertDialogAction
+                          onClick={async () => {
+                            try {
+                              await deleteLoop(loop.id);
+                              toast({
+                                title: "Success",
+                                description: "Loop deleted successfully",
+                              });
+                              setLocation('/');
+                            } catch (error) {
+                              toast({
+                                title: "Error",
+                                description: error instanceof Error ? error.message : "Failed to delete loop",
+                                variant: "destructive",
+                              });
+                            }
+                          }}
+                          className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                        >
+                          Delete
+                        </AlertDialogAction>
+                      </AlertDialogFooter>
+                    </AlertDialogContent>
+                  </AlertDialog>
                 </div>
-              </div>
-            </TabsContent>
-          </Tabs>
-        </CardContent>
-      </Card>
+                <div className="space-y-6">
+                  <div>
+                    <Label>Newsletter Frequency</Label>
+                    <p className="text-muted-foreground">{loop.frequency}</p>
+                  </div>
+                  <div>
+                    <Label>Newsletter Vibe</Label>
+                    <p className="text-muted-foreground">{loop.vibe.join(", ")}</p>
+                  </div>
+                  {loop.context && (
+                    <div>
+                      <Label>Group Context</Label>
+                      <p className="text-muted-foreground">{loop.context}</p>
+                    </div>
+                  )}
+                  <div>
+                    <Label>Reminder Schedule</Label>
+                    <div className="mt-2 space-y-2">
+                      {DAYS_OF_WEEK.map((day) => {
+                        const reminderForDay = loop.reminderSchedule.find(r => r.day === day);
+                        return (
+                          <div key={day} className="flex items-center space-x-4">
+                            <div className="flex items-center space-x-2 min-w-[200px]">
+                              <Checkbox
+                                id={day}
+                                checked={!!reminderForDay}
+                                onCheckedChange={async (checked) => {
+                                  try {
+                                    const newSchedule = checked
+                                      ? [...loop.reminderSchedule, { day, time: '09:00' }]
+                                      : loop.reminderSchedule.filter(r => r.day !== day);
+
+                                    await updateLoop({
+                                      reminderSchedule: newSchedule,
+                                    });
+
+                                    toast({
+                                      title: "Success",
+                                      description: "Reminder schedule updated successfully!",
+                                    });
+                                  } catch (error) {
+                                    toast({
+                                      title: "Error",
+                                      description: error instanceof Error ? error.message : "Failed to update reminder schedule",
+                                      variant: "destructive",
+                                    });
+                                  }
+                                }}
+                              />
+                              <Label htmlFor={day}>{day}</Label>
+                            </div>
+                            {reminderForDay && (
+                              <Select
+                                value={reminderForDay.time}
+                                onValueChange={async (newTime) => {
+                                  try {
+                                    const newSchedule = loop.reminderSchedule.map(r =>
+                                      r.day === day ? { ...r, time: newTime } : r
+                                    );
+
+                                    await updateLoop({
+                                      reminderSchedule: newSchedule,
+                                    });
+
+                                    toast({
+                                      title: "Success",
+                                      description: "Reminder time updated successfully!",
+                                    });
+                                  } catch (error) {
+                                    toast({
+                                      title: "Error",
+                                      description: error instanceof Error ? error.message : "Failed to update reminder time",
+                                      variant: "destructive",
+                                    });
+                                  }
+                                }}
+                              >
+                                <SelectTrigger className="w-[180px]">
+                                  <SelectValue placeholder="Select time" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  {TIME_OPTIONS.map((time) => (
+                                    <SelectItem key={time} value={time}>
+                                      {time}
+                                    </SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                    <p className="text-sm text-muted-foreground mt-2">
+                      Select the days and times when members will receive SMS reminders to share their updates.
+                    </p>
+                  </div>
+                </div>
+              </TabsContent>
+            </Tabs>
+          </CardContent>
+        </Card>
+      </div>
     </div>
   );
 }
