@@ -291,6 +291,11 @@ export default function LoopManager() {
                             <p className="text-sm text-muted-foreground">
                               {member.user?.phoneNumber}
                             </p>
+                            {member.user?.email && (
+                              <p className="text-sm text-muted-foreground">
+                                {member.user.email}
+                              </p>
+                            )}
                           </div>
                         </CardContent>
                       </Card>
