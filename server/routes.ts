@@ -48,7 +48,7 @@ export function registerRoutes(app: Express): Server {
       // Extract loop name from message if specified
       const loopNameMatch = Body.match(/\[(.*?)\]/);
       const targetLoops = loopNameMatch
-        ? userLoops.filter(membership => membership.loop.name === loopNameMatch[1])
+        ? userLoops.filter(membership => membership.loop!.name === loopNameMatch[1])
         : userLoops;
 
       if (loopNameMatch && !targetLoops.length) {
@@ -62,7 +62,7 @@ export function registerRoutes(app: Express): Server {
           db
             .insert(updates)
             .values({
-              loopId: membership.loop.id,
+              loopId: membership.loop!.id,
               userId: user.id,
               content: Body,
               mediaUrl: MediaUrl0 || null,
