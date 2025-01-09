@@ -190,7 +190,7 @@ export default function Dashboard() {
   );
 
   return (
-    <div className="min-h-screen bg-orange-50/50">
+    <div className="min-h-screen bg-orange-100/50">
       <div className="container mx-auto p-4">
         <div className="flex justify-between items-center mb-8">
           <h1 className="text-3xl font-bold">My Loops</h1>
