@@ -256,12 +256,15 @@ export default function LoopManager() {
               <TabsContent value="newsletters" className="mt-4">
                 <div className="flex justify-between items-center mb-4">
                   <h3 className="text-lg font-semibold">Newsletters</h3>
-                  {loop.newsletters?.length > 0 && (
-                    <div>
+                  {loop.newsletters && loop.newsletters.length > 0 && (
+                    <div className="min-w-[200px]">
                       {(() => {
+                        console.log("Newsletter data:", loop.newsletters);
                         const lastNewsletter = loop.newsletters[loop.newsletters.length - 1];
+                        console.log("Last newsletter:", lastNewsletter);
                         const lastSentDate = new Date(lastNewsletter.sentAt!);
                         const nextNewsletterDate = new Date(lastSentDate);
+                        console.log("Last sent date:", lastSentDate);
 
                         // Add days based on frequency
                         if (loop.frequency === 'biweekly') {
@@ -274,6 +277,10 @@ export default function LoopManager() {
                         const diffTime = Math.abs(nextNewsletterDate.getTime() - now.getTime());
                         const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
                         const isOverdue = nextNewsletterDate < now;
+
+                        console.log("Next newsletter date:", nextNewsletterDate);
+                        console.log("Days difference:", diffDays);
+                        console.log("Is overdue:", isOverdue);
 
                         return (
                           <Card className="bg-muted">
