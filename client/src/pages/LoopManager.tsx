@@ -273,29 +273,66 @@ export default function LoopManager() {
                 )}
               </TabsContent>
               <TabsContent value="members" className="mt-4">
-                <h3 className="text-lg font-semibold mb-4">Members</h3>
+                <div className="flex justify-between items-center mb-4">
+                  <h3 className="text-lg font-semibold">Members</h3>
+                  <AddMemberDialog />
+                </div>
                 {loop.members?.length ? (
                   <div className="space-y-4">
                     {loop.members.map((member) => (
                       <Card key={member.id}>
                         <CardContent className="pt-4">
-                          <div className="flex flex-col gap-1">
-                            <p className="font-medium">
-                              {member.user?.firstName} {member.user?.lastName}
-                            </p>
-                            {member.context && (
-                              <p className="text-sm text-muted-foreground">
-                                {member.context}
+                          <div className="flex justify-between items-start">
+                            <div className="flex flex-col gap-1">
+                              <p className="font-medium">
+                                {member.user?.firstName} {member.user?.lastName}
                               </p>
-                            )}
-                            <p className="text-sm text-muted-foreground">
-                              {member.user?.phoneNumber}
-                            </p>
-                            {member.user?.email && (
+                              {member.context && (
+                                <p className="text-sm text-muted-foreground">
+                                  {member.context}
+                                </p>
+                              )}
                               <p className="text-sm text-muted-foreground">
-                                {member.user.email}
+                                {member.user?.phoneNumber}
                               </p>
-                            )}
+                              {member.user?.email && (
+                                <p className="text-sm text-muted-foreground">
+                                  {member.user.email}
+                                </p>
+                              )}
+                            </div>
+                            <Button
+                              variant="destructive"
+                              size="sm"
+                              onClick={async () => {
+                                try {
+                                  const response = await fetch(`/api/loops/${id}/members/${member.id}`, {
+                                    method: 'DELETE',
+                                    credentials: 'include',
+                                  });
+
+                                  if (!response.ok) {
+                                    throw new Error(await response.text());
+                                  }
+
+                                  // Invalidate and refetch loop data
+                                  await queryClient.invalidateQueries({ queryKey: [`/api/loops/${id}`] });
+
+                                  toast({
+                                    title: "Success",
+                                    description: "Member removed successfully",
+                                  });
+                                } catch (error) {
+                                  toast({
+                                    title: "Error",
+                                    description: error instanceof Error ? error.message : "Failed to remove member",
+                                    variant: "destructive",
+                                  });
+                                }
+                              }}
+                            >
+                              Remove
+                            </Button>
                           </div>
                         </CardContent>
                       </Card>
