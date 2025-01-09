@@ -6,6 +6,7 @@ import { loops, loopMembers, updates, newsletters, users, type User } from "@db/
 import { and, eq } from "drizzle-orm";
 import { generateNewsletter, analyzeUpdatesForHighlights } from "./anthropic";
 import { sendWelcomeMessage } from "./twilio";
+import { randomBytes } from "crypto";
 
 export function registerRoutes(app: Express): Server {
   // Setup authentication routes
@@ -314,18 +315,48 @@ export function registerRoutes(app: Express): Server {
       return res.status(401).send("Not authenticated");
     }
 
-    const { userId, context } = req.body;
+    const { firstName, lastName, email, phoneNumber, context } = req.body;
 
-    const [member] = await db
-      .insert(loopMembers)
-      .values({
-        loopId: parseInt(req.params.id),
-        userId,
-        context,
-      })
-      .returning();
+    try {
+      // Generate a random temporary password
+      const tempPassword = randomBytes(16).toString('hex');
 
-    res.json(member);
+      // Create user first
+      const [newUser] = await db
+        .insert(users)
+        .values({
+          firstName,
+          lastName,
+          email: email || null,
+          phoneNumber,
+          password: tempPassword, // They'll need to reset this later
+        })
+        .returning();
+
+      // Then create loop member
+      const [member] = await db
+        .insert(loopMembers)
+        .values({
+          loopId: parseInt(req.params.id),
+          userId: newUser.id,
+          context,
+        })
+        .returning();
+
+      // Return member with user data
+      const [completeMember] = await db.query.loopMembers.findMany({
+        where: eq(loopMembers.id, member.id),
+        with: {
+          user: true,
+        },
+        limit: 1,
+      });
+
+      res.json(completeMember);
+    } catch (error) {
+      console.error("Error adding member:", error);
+      res.status(500).send("Failed to add member");
+    }
   });
 
   // Updates
