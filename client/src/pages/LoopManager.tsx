@@ -65,11 +65,11 @@ const TIME_OPTIONS = Array.from({ length: 24 * 12 }, (_, index) => {
 });
 
 const vibeOptions = [
-  { value: 'informative', label: 'Informative' },
-  { value: 'promotional', label: 'Promotional' },
-  { value: 'engaging', label: 'Engaging' },
-  { value: 'fun', label: 'Fun' },
-  // Add more vibe options as needed
+  { label: "Fun", value: "fun" },
+  { label: "Casual", value: "casual" },
+  { label: "Funny", value: "funny" },
+  { label: "Formal", value: "formal" },
+  { label: "Deep", value: "deep" },
 ];
 
 export default function LoopManager() {
