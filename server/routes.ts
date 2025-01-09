@@ -309,6 +309,51 @@ export function registerRoutes(app: Express): Server {
   });
 
   // Loop Members
+  app.delete("/api/loops/:id/members/:memberId", async (req, res) => {
+    const user = req.user as User | undefined;
+    if (!user?.id) {
+      return res.status(401).send("Not authenticated");
+    }
+
+    try {
+      // First verify the user owns this loop
+      const [loop] = await db
+        .select()
+        .from(loops)
+        .where(
+          and(
+            eq(loops.id, parseInt(req.params.id)),
+            eq(loops.creatorId, user.id)
+          )
+        )
+        .limit(1);
+
+      if (!loop) {
+        return res.status(404).send("Loop not found or not authorized");
+      }
+
+      // Delete the membership
+      const [deletedMember] = await db
+        .delete(loopMembers)
+        .where(
+          and(
+            eq(loopMembers.id, parseInt(req.params.memberId)),
+            eq(loopMembers.loopId, loop.id)
+          )
+        )
+        .returning();
+
+      if (!deletedMember) {
+        return res.status(404).send("Member not found");
+      }
+
+      res.json({ message: "Member removed successfully" });
+    } catch (error) {
+      console.error("Error removing member:", error);
+      res.status(500).send("Failed to remove member");
+    }
+  });
+
   app.post("/api/loops/:id/members", async (req, res) => {
     const user = req.user as User | undefined;
     if (!user?.id) {
