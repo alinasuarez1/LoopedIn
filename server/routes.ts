@@ -286,6 +286,7 @@ export function registerRoutes(app: Express): Server {
     const userLoops = await db.query.loops.findMany({
       where: eq(loops.creatorId, user.id),
       with: {
+        creator: true,
         members: {
           with: {
             user: true,
