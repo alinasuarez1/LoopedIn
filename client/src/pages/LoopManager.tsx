@@ -12,7 +12,7 @@ import {
 } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, Plus, ArrowLeft, Trash2 } from "lucide-react";
+import { Loader2, Plus, ArrowLeft, Trash2, ExternalLink } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -381,19 +381,34 @@ export default function LoopManager() {
                   </div>
                 </div>
 
-                {loop.newsletters?.length > 0 && (
-                  <div className="space-y-4">
+                {loop.newsletters?.length > 0 ? (
+                  <div className="space-y-2">
                     {loop.newsletters.map((newsletter) => (
-                      <Card key={newsletter.id}>
-                        <CardContent className="pt-4">
-                          <p className="text-sm text-muted-foreground">
-                            Sent on {new Date(newsletter.sentAt!).toLocaleString()}
-                          </p>
-                          <div className="mt-2 prose" dangerouslySetInnerHTML={{ __html: newsletter.content }} />
-                        </CardContent>
-                      </Card>
+                      <div
+                        key={newsletter.id}
+                        className="flex items-center justify-between p-3 bg-muted/50 rounded-lg hover:bg-muted transition-colors"
+                      >
+                        <div className="flex flex-col">
+                          <time className="text-sm text-muted-foreground">
+                            {new Date(newsletter.sentAt!).toLocaleString()}
+                          </time>
+                        </div>
+                        <a
+                          href={`/newsletters/${newsletter.urlId}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="flex items-center gap-2 text-primary hover:underline"
+                        >
+                          View Newsletter
+                          <ExternalLink className="h-4 w-4" />
+                        </a>
+                      </div>
                     ))}
                   </div>
+                ) : (
+                  <p className="text-center text-muted-foreground py-4">
+                    No newsletters have been generated yet
+                  </p>
                 )}
               </TabsContent>
               <TabsContent value="members" className="mt-4">
