@@ -810,7 +810,9 @@ export function registerRoutes(app: Express): Server {
         });
 
         if (adminUser) {
-          const previewUrl = `${process.env.APP_URL}/newsletters/${urlId}`;
+          const domain = req.get('host') || 'loopedin.replit.app';
+          const protocol = req.protocol || 'https';
+          const previewUrl = `${protocol}://${domain}/newsletters/${urlId}`;
           await sendSMS(
             adminUser.phoneNumber,
             `Your ${loop.name} newsletter draft is ready for review. Check it out here: ${previewUrl}`
@@ -1019,7 +1021,7 @@ export function registerRoutes(app: Express): Server {
         if (!member.user?.phoneNumber) continue;
 
         try {
-          const viewUrl = `${process.env.APP_URL}/newsletters/${newsletterId}`;
+          const viewUrl = `${process.env.APPURL}/newsletters/${newsletterId}`;
           await sendSMS(
             member.user.phoneNumber,
             `New update from your loop! Read it here: ${viewUrl}`
