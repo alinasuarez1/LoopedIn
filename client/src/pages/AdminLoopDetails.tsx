@@ -1,4 +1,4 @@
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation } from "@tanstack/react-query";
 import { useParams } from "wouter";
 import {
   Card,
@@ -15,8 +15,10 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { Button } from "@/components/ui/button";
 import { Loader2 } from "lucide-react";
 import { format } from "date-fns";
+import { useToast } from "@/hooks/use-toast";
 
 interface LoopDetails {
   id: number;
@@ -62,10 +64,40 @@ interface LoopDetails {
 
 export default function AdminLoopDetails() {
   const { id } = useParams<{ id: string }>();
-  
-  const { data: loop, isLoading, error } = useQuery<LoopDetails>({
+  const { toast } = useToast();
+
+  const { data: loop, isLoading, error, refetch } = useQuery<LoopDetails>({
     queryKey: [`/api/admin/loops/${id}`],
     retry: false,
+  });
+
+  const generateNewsletterMutation = useMutation({
+    mutationFn: async () => {
+      const response = await fetch(`/api/loops/${id}/newsletters/generate`, {
+        method: 'POST',
+        credentials: 'include',
+      });
+
+      if (!response.ok) {
+        throw new Error(await response.text());
+      }
+
+      return response.json();
+    },
+    onSuccess: () => {
+      toast({
+        title: "Newsletter Generated",
+        description: "The newsletter has been generated and sent for review.",
+      });
+      refetch();
+    },
+    onError: (error) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to generate newsletter",
+        variant: "destructive",
+      });
+    },
   });
 
   if (error) {
@@ -91,10 +123,27 @@ export default function AdminLoopDetails() {
     );
   }
 
+  const handleGenerateNewsletter = () => {
+    generateNewsletterMutation.mutate();
+  };
+
   return (
     <div className="container mx-auto p-4 space-y-6">
       <div className="flex justify-between items-center">
         <h1 className="text-3xl font-bold">{loop.name}</h1>
+        <Button 
+          onClick={handleGenerateNewsletter}
+          disabled={generateNewsletterMutation.isPending}
+        >
+          {generateNewsletterMutation.isPending ? (
+            <>
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              Generating...
+            </>
+          ) : (
+            'Generate Newsletter'
+          )}
+        </Button>
       </div>
 
       {/* Loop Info */}
