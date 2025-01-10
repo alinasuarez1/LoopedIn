@@ -16,8 +16,15 @@ export function registerRoutes(app: Express): Server {
   // Twilio Webhook for incoming messages
   app.post("/api/webhooks/twilio", async (req, res) => {
     try {
-      const { From, Body, MediaUrl0 } = req.body;
-      console.log('Received Twilio webhook with media:', MediaUrl0);
+      const { From, Body, MediaUrl0, MediaContentType0 } = req.body;
+      console.log('Received Twilio webhook:', {
+        from: From,
+        hasMedia: !!MediaUrl0,
+        mediaUrl: MediaUrl0,
+        mediaContentType: MediaContentType0,
+        messageBody: Body,
+        rawBody: req.body // Log the entire request body for debugging
+      });
 
       // Clean up the phone number (remove the '+' prefix if present)
       const phoneNumber = From.startsWith('+') ? From.substring(1) : From;
@@ -62,11 +69,27 @@ export function registerRoutes(app: Express): Server {
       let mediaUrl = null;
       if (MediaUrl0) {
         try {
-          console.log('Attempting to upload media from Twilio URL:', MediaUrl0);
+          console.log('Attempting to upload media from Twilio URL:', {
+            url: MediaUrl0,
+            contentType: MediaContentType0,
+            userId: user.id
+          });
+
           mediaUrl = await uploadMediaFromUrl(MediaUrl0, user.id);
-          console.log('Successfully uploaded media to Google Cloud Storage:', mediaUrl);
+          console.log('Successfully uploaded media to Google Cloud Storage:', {
+            originalUrl: MediaUrl0,
+            newUrl: mediaUrl
+          });
         } catch (error) {
           console.error('Failed to upload media:', error);
+          // Log more details about the error
+          if (error instanceof Error) {
+            console.error('Error details:', {
+              message: error.message,
+              stack: error.stack,
+              name: error.name
+            });
+          }
           // Continue without the media if upload fails
         }
       }
@@ -80,11 +103,17 @@ export function registerRoutes(app: Express): Server {
               loopId: membership.loop!.id,
               userId: user.id,
               content: Body,
-              mediaUrl: mediaUrl, // Use the Google Cloud Storage URL
+              mediaUrl: mediaUrl,
             })
             .returning();
 
-          console.log('Saved update with mediaUrl:', update[0].mediaUrl);
+          console.log('Saved update:', {
+            updateId: update[0].id,
+            loopId: membership.loop!.id,
+            userId: user.id,
+            hasMediaUrl: !!mediaUrl,
+            mediaUrl: mediaUrl // Log the actual URL for debugging
+          });
           return update[0];
         })
       );
@@ -100,6 +129,13 @@ export function registerRoutes(app: Express): Server {
       `);
     } catch (error) {
       console.error("Error processing Twilio webhook:", error);
+      if (error instanceof Error) {
+        console.error('Error details:', {
+          message: error.message,
+          stack: error.stack,
+          name: error.name
+        });
+      }
       res.status(500).send("Internal server error");
     }
   });

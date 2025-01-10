@@ -9,11 +9,15 @@ let client: ReturnType<typeof twilio> | null = null;
 let fromNumber: string | null = null;
 
 if (hasCredentials) {
+  console.log('Initializing Twilio client with credentials');
   client = twilio(
     process.env.TWILIO_ACCOUNT_SID!,
     process.env.TWILIO_AUTH_TOKEN!
   );
   fromNumber = process.env.TWILIO_PHONE_NUMBER!;
+  console.log('Twilio client initialized successfully');
+} else {
+  console.warn('Twilio credentials not configured. SMS features are disabled.');
 }
 
 export async function sendWelcomeMessage(phoneNumber: string, loopName: string) {
@@ -23,12 +27,13 @@ export async function sendWelcomeMessage(phoneNumber: string, loopName: string) 
   }
 
   try {
+    console.log(`Sending welcome message to ${phoneNumber} for loop ${loopName}`);
     await client!.messages.create({
       body: `Welcome to ${loopName}! 🎉 You're now connected with your group through LoopedIn. Share your updates by replying to this message, and we'll include them in the next newsletter!`,
       from: fromNumber!,
       to: phoneNumber
     });
-    console.log(`Welcome message sent to ${phoneNumber} for loop ${loopName}`);
+    console.log(`Welcome message sent successfully to ${phoneNumber}`);
     return { smsStatus: 'enabled' };
   } catch (error) {
     console.error('Error sending welcome message:', error);
@@ -43,12 +48,13 @@ export async function sendMessage(phoneNumber: string, message: string) {
   }
 
   try {
+    console.log(`Sending message to ${phoneNumber}`);
     await client!.messages.create({
       body: message,
       from: fromNumber!,
       to: phoneNumber
     });
-    console.log(`Message sent to ${phoneNumber}: ${message}`);
+    console.log(`Message sent successfully to ${phoneNumber}: ${message}`);
     return { smsStatus: 'enabled' };
   } catch (error) {
     console.error('Error sending message:', error);
@@ -57,6 +63,7 @@ export async function sendMessage(phoneNumber: string, message: string) {
 }
 
 export async function sendReminder(phoneNumber: string, loopName: string) {
+  console.log(`Sending reminder to ${phoneNumber} for loop ${loopName}`);
   const message = `Hi! Share your updates for ${loopName}'s newsletter! Reply to this message with text or photos.`;
   return sendMessage(phoneNumber, message);
 }
@@ -76,7 +83,6 @@ export async function sendScheduledReminders() {
 
   try {
     // Query all loops that have reminders scheduled for current day and time
-    // Cast the reminder_schedule to JSONB before using jsonb_array_elements
     const loopsToRemind = await db.query.loops.findMany({
       where: sql`EXISTS (
         SELECT 1 FROM jsonb_array_elements(CAST(${loops.reminderSchedule} AS JSONB)) as schedule
@@ -110,7 +116,7 @@ export async function sendScheduledReminders() {
   }
 }
 
-// Check for reminders every minute instead of every hour to be more precise
+// Check for reminders every minute
 setInterval(sendScheduledReminders, 1000 * 60);
 // Initial check
 sendScheduledReminders();
