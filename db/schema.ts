@@ -1,6 +1,7 @@
 import { pgTable, text, serial, integer, boolean, timestamp, jsonb } from "drizzle-orm/pg-core";
 import { createInsertSchema, createSelectSchema } from "drizzle-zod";
 import { relations } from "drizzle-orm";
+import { nanoid } from 'nanoid';
 
 export type ReminderSchedule = {
   day: string;
@@ -52,6 +53,7 @@ export const newsletters = pgTable("newsletters", {
   loopId: integer("loop_id").references(() => loops.id),
   content: text("content").notNull(),
   status: text("status").notNull().default('draft'), // 'draft' or 'sent'
+  urlId: text("url_id").notNull().unique(),
   sentAt: timestamp("sent_at"),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),

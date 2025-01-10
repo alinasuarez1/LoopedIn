@@ -9,6 +9,7 @@ const anthropic = new Anthropic({
 interface NewsletterUpdate {
   content: string;
   userName: string;
+  mediaUrls?: string[];
 }
 
 interface NewsletterOptions {
@@ -23,7 +24,14 @@ export async function generateNewsletter(
   options?: NewsletterOptions
 ): Promise<string> {
   try {
-    const updatesList = updates.map(u => `${u.userName}: ${u.content}`).join('\n\n');
+    const updatesList = updates.map(u => {
+      const mediaHtml = u.mediaUrls?.map((url, index) => 
+        `\n![Update media ${index + 1}](${url})`
+      ).join('\n') || '';
+
+      return `${u.userName}: ${u.content}${mediaHtml}`;
+    }).join('\n\n');
+
     const vibeDescription = vibe.join(', ');
     const customHeader = options?.customHeader ? `\nCustom Header: ${options.customHeader}` : '';
     const customClosing = options?.customClosing ? `\nCustom Closing: ${options.customClosing}` : '';
@@ -49,7 +57,8 @@ Use markdown formatting for better readability. Make sure to:
 - Use bullet points for lists
 - Add emphasis using bold or italics where appropriate
 - Include section headers
-- Maintain a consistent, friendly tone throughout`;
+- Maintain a consistent, friendly tone throughout
+- Preserve all image markdown syntax exactly as provided in the updates`;
 
     const response = await anthropic.messages.create({
       model: 'claude-3-5-sonnet-20241022',
