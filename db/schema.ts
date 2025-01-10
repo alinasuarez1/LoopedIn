@@ -1,4 +1,4 @@
-import { pgTable, text, serial, integer, boolean, timestamp, json } from "drizzle-orm/pg-core";
+import { pgTable, text, serial, integer, boolean, timestamp, jsonb } from "drizzle-orm/pg-core";
 import { createInsertSchema, createSelectSchema } from "drizzle-zod";
 import { relations } from "drizzle-orm";
 
@@ -23,9 +23,9 @@ export const loops = pgTable("loops", {
   id: serial("id").primaryKey(),
   name: text("name").notNull(),
   frequency: text("frequency").notNull(), // 'biweekly' or 'monthly'
-  vibe: json("vibe").$type<string[]>().notNull(),
+  vibe: jsonb("vibe").$type<string[]>().notNull(),
   context: text("context"),
-  reminderSchedule: json("reminder_schedule").$type<ReminderSchedule>().notNull(),
+  reminderSchedule: jsonb("reminder_schedule").$type<ReminderSchedule>().notNull(),
   creatorId: integer("creator_id").references(() => users.id),
   createdAt: timestamp("created_at").defaultNow(),
 });
@@ -43,7 +43,7 @@ export const updates = pgTable("updates", {
   loopId: integer("loop_id").references(() => loops.id),
   userId: integer("user_id").references(() => users.id),
   content: text("content").notNull(),
-  mediaUrls: json("media_urls").$type<string[]>().default([]),
+  mediaUrls: jsonb("media_urls").$type<string[]>().default([]),
   createdAt: timestamp("created_at").defaultNow(),
 });
 
