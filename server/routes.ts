@@ -6,7 +6,6 @@ import { loops, loopMembers, updates, newsletters, users, type User } from "@db/
 import { and, eq, desc, ilike } from "drizzle-orm";
 import { generateNewsletter, suggestNewsletterImprovements } from "./anthropic";
 import { sendWelcomeMessage, sendSMS } from "./twilio";
-import { processAndSaveMedia } from "./storage";
 
 // Middleware to check if user has privileged access
 const requirePrivilegedAccess = async (req: Express.Request, res: Express.Response, next: Express.NextFunction) => {
