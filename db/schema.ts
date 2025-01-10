@@ -15,6 +15,7 @@ export const users = pgTable("users", {
   lastName: text("last_name").notNull(),
   phoneNumber: text("phone_number").unique().notNull(),
   isAdmin: boolean("is_admin").default(false),
+  isPrivileged: boolean("is_privileged").default(false),
   createdAt: timestamp("created_at").defaultNow(),
 });
 
