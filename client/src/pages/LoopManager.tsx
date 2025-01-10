@@ -238,20 +238,24 @@ export default function LoopManager() {
                             {new Date(update.createdAt!).toLocaleString()}
                           </p>
                           <p className="mt-2">{update.content}</p>
-                          {update.mediaUrl && (
-                            <div className="mt-2">
-                              <img
-                                src={update.mediaUrl}
-                                alt="Update media"
-                                className="rounded-md max-w-full h-auto object-cover"
-                                loading="lazy"
-                                onError={(e) => {
-                                  console.error('Failed to load image:', update.mediaUrl);
-                                  const target = e.target as HTMLImageElement;
-                                  target.onerror = null; // Prevent infinite loop
-                                  target.src = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Crect width='18' height='18' x='3' y='3' rx='2' ry='2'%3E%3C/rect%3E%3Ccircle cx='9' cy='9' r='2'%3E%3C/circle%3E%3Cpath d='m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21'%3E%3C/path%3E%3C/svg%3E";
-                                }}
-                              />
+                          {update.mediaUrls && update.mediaUrls.length > 0 && (
+                            <div className="mt-2 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
+                              {update.mediaUrls.map((url, index) => (
+                                <div key={index} className="relative aspect-square">
+                                  <img
+                                    src={url}
+                                    alt={`Update media ${index + 1}`}
+                                    className="rounded-md w-full h-full object-cover"
+                                    loading="lazy"
+                                    onError={(e) => {
+                                      console.error('Failed to load image:', url);
+                                      const target = e.target as HTMLImageElement;
+                                      target.onerror = null; // Prevent infinite loop
+                                      target.src = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Crect width='18' height='18' x='3' y='3' rx='2' ry='2'%3E%3C/rect%3E%3Ccircle cx='9' cy='9' r='2'%3E%3C/circle%3E%3Cpath d='m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21'%3E%3C/path%3E%3C/svg%3E";
+                                    }}
+                                  />
+                                </div>
+                              ))}
                             </div>
                           )}
                         </CardContent>
