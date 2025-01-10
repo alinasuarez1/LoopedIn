@@ -6,6 +6,7 @@ import { loops, loopMembers, updates, newsletters, users, type User } from "@db/
 import { and, eq, desc, ilike } from "drizzle-orm";
 import { generateNewsletter, suggestNewsletterImprovements } from "./anthropic";
 import { sendWelcomeMessage, sendSMS } from "./twilio";
+import { processAndSaveMedia } from "./storage";
 import { nanoid } from 'nanoid';
 
 // Middleware to check if user has privileged access
@@ -851,11 +852,65 @@ export function registerRoutes(app: Express): Server {
           <meta name="viewport" content="width=device-width, initial-scale=1.0">
           <title>${newsletter.loop?.name || 'Loop'} Newsletter</title>
           <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+          <style>
+            .newsletter-content {
+              max-width: 800px;
+              margin: 0 auto;
+              padding: 2rem;
+            }
+            .newsletter-content h1 {
+              font-size: 2.25rem;
+              font-weight: bold;
+              margin-bottom: 1.5rem;
+              color: #1a1a1a;
+            }
+            .newsletter-content h2 {
+              font-size: 1.5rem;
+              font-weight: bold;
+              margin-top: 2rem;
+              margin-bottom: 1rem;
+              color: #2d3748;
+            }
+            .newsletter-content h3 {
+              font-size: 1.25rem;
+              font-weight: bold;
+              margin-top: 1.5rem;
+              margin-bottom: 0.75rem;
+              color: #4a5568;
+            }
+            .newsletter-content p {
+              margin-bottom: 1rem;
+              line-height: 1.6;
+            }
+            .newsletter-content img {
+              max-width: 100%;
+              height: auto;
+              border-radius: 0.5rem;
+              margin: 1rem 0;
+              box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+            }
+            .newsletter-content hr {
+              margin: 2rem 0;
+              border: 0;
+              height: 1px;
+              background-color: #e2e8f0;
+            }
+            .newsletter-content ul {
+              list-style-type: disc;
+              margin-left: 1.5rem;
+              margin-bottom: 1rem;
+            }
+            .newsletter-content li {
+              margin-bottom: 0.5rem;
+            }
+          </style>
         </head>
-        <body class="bg-gray-50">
-          <div class="max-w-3xl mx-auto p-6">
-            <article class="prose lg:prose-xl mx-auto bg-white p-8 rounded-lg shadow-lg">
-              ${newsletter.content}
+        <body class="bg-gray-50 min-h-screen py-8">
+          <div class="max-w-4xl mx-auto px-4">
+            <article class="bg-white rounded-xl shadow-lg overflow-hidden">
+              <div class="newsletter-content">
+                ${newsletter.content}
+              </div>
             </article>
           </div>
         </body>
