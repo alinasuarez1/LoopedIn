@@ -3,7 +3,7 @@ import { createServer, type Server } from "http";
 import { setupAuth } from "./auth";
 import { db } from "@db";
 import { loops, loopMembers, updates, newsletters, users, type User } from "@db/schema";
-import { and, eq, desc, like } from "drizzle-orm";
+import { and, eq, desc, ilike } from "drizzle-orm";
 import { generateNewsletter } from "./anthropic";
 import { sendWelcomeMessage } from "./twilio";
 import { processAndSaveMedia } from "./storage";
@@ -28,21 +28,10 @@ export function registerRoutes(app: Express): Server {
 
   // Admin Routes
   app.get("/api/admin/loops", requireAdmin, async (req, res) => {
-    const { search, adminEmail, sort = "recent" } = req.query;
+    const { search, sort = "recent" } = req.query;
 
-    let query = db.query.loops.findMany({
-      with: {
-        creator: true,
-        members: true,
-        updates: true,
-        newsletters: true,
-      },
-    });
-
-    // Apply filters
-    if (search) {
-      query = db.query.loops.findMany({
-        where: like(loops.name, `%${search}%`),
+    try {
+      let query = db.query.loops.findMany({
         with: {
           creator: true,
           members: true,
@@ -50,44 +39,43 @@ export function registerRoutes(app: Express): Server {
           newsletters: true,
         },
       });
+
+      // Apply search filter if provided
+      if (search && typeof search === 'string') {
+        query = db.query.loops.findMany({
+          where: ilike(loops.name, `%${search}%`),
+          with: {
+            creator: true,
+            members: true,
+            updates: true,
+            newsletters: true,
+          },
+        });
+      }
+
+      // Apply sorting
+      if (sort === "recent") {
+        query = db.query.loops.findMany({
+          ...query,
+          orderBy: desc(loops.createdAt),
+        });
+      }
+
+      const allLoops = await query;
+
+      // Transform data for the frontend
+      const loopsWithStats = allLoops.map(loop => ({
+        ...loop,
+        memberCount: loop.members?.length || 0,
+        lastNewsletter: loop.newsletters?.[loop.newsletters.length - 1]?.sentAt || null,
+        updateCount: loop.updates?.length || 0,
+      }));
+
+      res.json(loopsWithStats);
+    } catch (error) {
+      console.error('Error fetching loops:', error);
+      res.status(500).json({ error: 'Failed to fetch loops' });
     }
-
-    if (adminEmail) {
-      query = db.query.loops.findMany({
-        where: eq(users.email, adminEmail as string),
-        with: {
-          creator: true,
-          members: true,
-          updates: true,
-          newsletters: true,
-        },
-      });
-    }
-
-    // Apply sorting
-    if (sort === "recent") {
-      query = db.query.loops.findMany({
-        orderBy: desc(loops.createdAt),
-        with: {
-          creator: true,
-          members: true,
-          updates: true,
-          newsletters: true,
-        },
-      });
-    }
-
-    const allLoops = await query;
-
-    // Transform data for the frontend
-    const loopsWithStats = allLoops.map(loop => ({
-      ...loop,
-      memberCount: loop.members?.length || 0,
-      lastNewsletter: loop.newsletters?.[loop.newsletters.length - 1]?.sentAt || null,
-      updateCount: loop.updates?.length || 0,
-    }));
-
-    res.json(loopsWithStats);
   });
 
   app.get("/api/admin/loops/:id", requireAdmin, async (req, res) => {
