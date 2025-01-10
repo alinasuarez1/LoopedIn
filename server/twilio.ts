@@ -41,7 +41,7 @@ export async function sendWelcomeMessage(phoneNumber: string, loopName: string) 
   }
 }
 
-export async function sendMessage(phoneNumber: string, message: string) {
+export async function sendSMS(phoneNumber: string, message: string) {
   if (!hasCredentials) {
     console.warn('Twilio credentials not configured. SMS features are disabled.');
     return { smsStatus: 'disabled' };

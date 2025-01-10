@@ -51,7 +51,10 @@ export const newsletters = pgTable("newsletters", {
   id: serial("id").primaryKey(),
   loopId: integer("loop_id").references(() => loops.id),
   content: text("content").notNull(),
-  sentAt: timestamp("sent_at").defaultNow(),
+  status: text("status").notNull().default('draft'), // 'draft' or 'sent'
+  sentAt: timestamp("sent_at"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
 });
 
 export const loopsRelations = relations(loops, ({ one, many }) => ({
