@@ -239,20 +239,14 @@ export default function LoopManager() {
                           </p>
                           <p className="mt-2">{update.content}</p>
                           {update.mediaUrl && (
-                            <div className="mt-2 relative">
-                              {/* Add debug logging */}
-                              {console.log('Loading image:', update.mediaUrl)}
+                            <div className="mt-2">
                               <img
                                 src={update.mediaUrl}
                                 alt="Update media"
-                                className="rounded-md max-w-sm w-full h-auto object-cover"
+                                className="rounded-md max-w-full h-auto object-cover"
                                 loading="lazy"
-                                onLoad={(e) => {
-                                  console.log('Image loaded successfully:', update.mediaUrl);
-                                }}
                                 onError={(e) => {
                                   console.error('Failed to load image:', update.mediaUrl);
-                                  // Replace broken image with a placeholder
                                   const target = e.target as HTMLImageElement;
                                   target.onerror = null; // Prevent infinite loop
                                   target.src = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Crect width='18' height='18' x='3' y='3' rx='2' ry='2'%3E%3C/rect%3E%3Ccircle cx='9' cy='9' r='2'%3E%3C/circle%3E%3Cpath d='m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21'%3E%3C/path%3E%3C/svg%3E";
