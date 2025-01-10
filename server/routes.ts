@@ -8,15 +8,15 @@ import { generateNewsletter } from "./anthropic";
 import { sendWelcomeMessage } from "./twilio";
 import { processAndSaveMedia } from "./storage";
 
-// Middleware to check if user is admin
-const requireAdmin = async (req: Express.Request, res: Express.Response, next: Express.NextFunction) => {
+// Middleware to check if user has privileged access
+const requirePrivilegedAccess = async (req: Express.Request, res: Express.Response, next: Express.NextFunction) => {
   const user = req.user as User | undefined;
   if (!user?.id) {
     return res.status(401).send("Not authenticated");
   }
 
-  if (!user.isAdmin) {
-    return res.status(403).send("Not authorized. Admin access required.");
+  if (!user.isPrivileged) {
+    return res.status(403).send("Not authorized. Privileged access required.");
   }
 
   next();
@@ -26,8 +26,8 @@ export function registerRoutes(app: Express): Server {
   // Setup authentication routes
   setupAuth(app);
 
-  // Admin Routes
-  app.get("/api/admin/loops", requireAdmin, async (req, res) => {
+  // Admin Routes - now protected by privileged access check
+  app.get("/api/admin/loops", requirePrivilegedAccess, async (req, res) => {
     const { search, sort = "recent" } = req.query;
 
     try {
@@ -71,12 +71,7 @@ export function registerRoutes(app: Express): Server {
     }
   });
 
-  app.get("/api/admin/loops/:id", requireAdmin, async (req, res) => {
-    const user = req.user as User | undefined;
-    if (!user?.id) {
-      return res.status(401).send("Not authenticated");
-    }
-
+  app.get("/api/admin/loops/:id", requirePrivilegedAccess, async (req, res) => {
     const [loop] = await db.query.loops.findMany({
       where: eq(loops.id, parseInt(req.params.id)),
       with: {
@@ -106,7 +101,7 @@ export function registerRoutes(app: Express): Server {
     res.json(loop);
   });
 
-  app.get("/api/admin/stats", requireAdmin, async (req, res) => {
+  app.get("/api/admin/stats", requirePrivilegedAccess, async (req, res) => {
     const { startDate, endDate } = req.query;
 
     // Get all loops with their creation dates
