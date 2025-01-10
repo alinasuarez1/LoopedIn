@@ -66,7 +66,7 @@ export function registerRoutes(app: Express): Server {
       // Extract loop name from message if specified
       const loopNameMatch = Body.match(/\[(.*?)\]/);
       const targetLoops = loopNameMatch
-        ? userLoops.filter(membership => membership.loop!.name === loopNameMatch[1])
+        ? userLoops.filter(membership => membership.loop!.name.toLowerCase() === loopNameMatch[1].toLowerCase())
         : userLoops;
 
       if (loopNameMatch && !targetLoops.length) {
@@ -132,7 +132,9 @@ export function registerRoutes(app: Express): Server {
       // Return a TwiML response with appropriate message
       let responseMessage = "Thanks for your update";
       if (loopNameMatch) {
-        responseMessage += ` to ${loopNameMatch[1]}`;
+        // Use the original loop name from the matched loop for the response
+        const matchedLoop = targetLoops[0].loop!;
+        responseMessage += ` to ${matchedLoop.name}`;
       } else if (savedUpdates.length > 1) {
         responseMessage += `s to all your loops`;
       }
