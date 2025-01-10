@@ -37,7 +37,7 @@ async function initializeBucket() {
           maxAgeSeconds: 3600,
           method: ['GET', 'HEAD', 'OPTIONS'],
           origin: ['*'],
-          responseHeader: ['Content-Type'],
+          responseHeader: ['Content-Type', 'Content-Length', 'Accept-Ranges'],
         },
       ]);
       console.log('CORS configuration successful');
@@ -75,8 +75,9 @@ export async function uploadMediaFromUrl(mediaUrl: string, userId: number): Prom
     const buffer = await response.buffer();
     const contentType = response.headers.get('content-type');
 
-    // Create a unique filename
-    const filename = `media/user-${userId}/${Date.now()}-${Math.random().toString(36).substring(7)}`;
+    // Create a unique filename with proper extension based on content type
+    const extension = contentType?.split('/')[1] || 'jpg';
+    const filename = `media/user-${userId}/${Date.now()}-${Math.random().toString(36).substring(7)}.${extension}`;
     const file = bucket.file(filename);
 
     console.log('Uploading to GCS with filename:', filename);
@@ -85,6 +86,7 @@ export async function uploadMediaFromUrl(mediaUrl: string, userId: number): Prom
     await file.save(buffer, {
       metadata: {
         contentType: contentType || 'application/octet-stream',
+        cacheControl: 'public, max-age=31536000',
       },
       resumable: false,
       validation: 'md5'
