@@ -90,6 +90,41 @@ export function registerRoutes(app: Express): Server {
     res.json(loopsWithStats);
   });
 
+  app.get("/api/admin/loops/:id", requireAdmin, async (req, res) => {
+    const user = req.user as User | undefined;
+    if (!user?.id) {
+      return res.status(401).send("Not authenticated");
+    }
+
+    const [loop] = await db.query.loops.findMany({
+      where: eq(loops.id, parseInt(req.params.id)),
+      with: {
+        creator: true,
+        members: {
+          with: {
+            user: true,
+          },
+        },
+        updates: {
+          with: {
+            user: true,
+          },
+          orderBy: desc(updates.createdAt),
+        },
+        newsletters: {
+          orderBy: desc(newsletters.sentAt),
+        },
+      },
+      limit: 1,
+    });
+
+    if (!loop) {
+      return res.status(404).send("Loop not found");
+    }
+
+    res.json(loop);
+  });
+
   app.get("/api/admin/stats", requireAdmin, async (req, res) => {
     const { startDate, endDate } = req.query;
 

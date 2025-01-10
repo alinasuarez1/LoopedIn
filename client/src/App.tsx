@@ -6,6 +6,7 @@ import AuthPage from "./pages/AuthPage";
 import Dashboard from "./pages/Dashboard";
 import LoopManager from "./pages/LoopManager";
 import AdminDashboard from "./pages/AdminDashboard";
+import AdminLoopDetails from "./pages/AdminLoopDetails";
 import ProfilePage from "./pages/ProfilePage";
 import { Navbar } from "./components/Navbar";
 
@@ -33,7 +34,12 @@ function App() {
           <Switch>
             <Route path="/profile" component={ProfilePage} />
             <Route path="/loops/:id" component={LoopManager} />
-            {user.isAdmin && <Route path="/admin" component={AdminDashboard} />}
+            {user.isAdmin && (
+              <>
+                <Route path="/admin/loops/:id" component={AdminLoopDetails} />
+                <Route path="/admin" component={AdminDashboard} />
+              </>
+            )}
             <Route path="/" component={Dashboard} />
           </Switch>
         )}

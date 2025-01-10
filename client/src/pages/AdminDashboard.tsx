@@ -26,6 +26,7 @@ import {
 import { useToast } from "@/hooks/use-toast";
 import { Loader2, Search } from "lucide-react";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+import { useLocation } from "wouter";
 
 interface Loop {
   id: number;
@@ -39,6 +40,7 @@ interface Loop {
   memberCount: number;
   lastNewsletter: string | null;
   createdAt: string;
+  updateCount: number;
 }
 
 interface Stats {
@@ -56,11 +58,15 @@ interface Stats {
 
 export default function AdminDashboard() {
   const { toast } = useToast();
+  const [, setLocation] = useLocation();
   const [search, setSearch] = useState("");
   const [sortBy, setSortBy] = useState("recent");
 
+  // Debounce search to avoid too many API calls
+  const debouncedSearch = useDebounce(search, 300);
+
   const { data: loops, isLoading: isLoopsLoading, error: loopsError } = useQuery<Loop[]>({
-    queryKey: ["/api/admin/loops", { search, sort: sortBy }],
+    queryKey: ["/api/admin/loops", { search: debouncedSearch, sort: sortBy }],
     retry: false,
   });
 
@@ -92,6 +98,10 @@ export default function AdminDashboard() {
     );
   }
 
+  const handleLoopClick = (loopId: number) => {
+    setLocation(`/admin/loops/${loopId}`);
+  };
+
   return (
     <div className="container mx-auto p-4 space-y-6">
       <h1 className="text-3xl font-bold">Admin Dashboard</h1>
@@ -112,6 +122,16 @@ export default function AdminDashboard() {
           </CardHeader>
           <CardContent>
             <p className="text-3xl font-bold">{stats?.totalMembers || 0}</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader>
+            <CardTitle>Total Updates</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-3xl font-bold">
+              {loops?.reduce((sum, loop) => sum + (loop.updateCount || 0), 0) || 0}
+            </p>
           </CardContent>
         </Card>
       </div>
@@ -213,7 +233,11 @@ export default function AdminDashboard() {
             </TableHeader>
             <TableBody>
               {loops?.map((loop) => (
-                <TableRow key={loop.id}>
+                <TableRow 
+                  key={loop.id} 
+                  className="cursor-pointer hover:bg-muted/50"
+                  onClick={() => handleLoopClick(loop.id)}
+                >
                   <TableCell className="font-medium">{loop.name}</TableCell>
                   <TableCell>
                     {loop.creator?.firstName} {loop.creator?.lastName}
@@ -240,4 +264,21 @@ export default function AdminDashboard() {
       </Card>
     </div>
   );
+}
+
+// Custom hook for debouncing values
+function useDebounce<T>(value: T, delay: number): T {
+  const [debouncedValue, setDebouncedValue] = useState<T>(value);
+
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      setDebouncedValue(value);
+    }, delay);
+
+    return () => {
+      clearTimeout(handler);
+    };
+  }, [value, delay]);
+
+  return debouncedValue;
 }
