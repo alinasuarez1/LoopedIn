@@ -59,15 +59,35 @@ interface Stats {
 export default function AdminDashboard() {
   const { toast } = useToast();
   const [, setLocation] = useLocation();
-  const [search, setSearch] = useState("");
+  const [searchInput, setSearchInput] = useState("");
   const [sortBy, setSortBy] = useState("recent");
 
   // Debounce search to avoid too many API calls
-  const debouncedSearch = useDebounce(search, 300);
+  const [debouncedSearch, setDebouncedSearch] = useState(searchInput);
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearch(searchInput);
+    }, 300);
+
+    return () => clearTimeout(timer);
+  }, [searchInput]);
 
   const { data: loops, isLoading: isLoopsLoading, error: loopsError } = useQuery<Loop[]>({
-    queryKey: ["/api/admin/loops", { search: debouncedSearch, sort: sortBy }],
-    retry: false,
+    queryKey: ["/api/admin/loops", debouncedSearch, sortBy],
+    queryFn: async () => {
+      const searchParams = new URLSearchParams();
+      if (debouncedSearch) searchParams.append("search", debouncedSearch);
+      if (sortBy) searchParams.append("sort", sortBy);
+
+      const response = await fetch(`/api/admin/loops?${searchParams.toString()}`, {
+        credentials: "include"
+      });
+      if (!response.ok) {
+        throw new Error(`Failed to fetch loops: ${response.statusText}`);
+      }
+      return response.json();
+    },
   });
 
   const { data: stats, isLoading: isStatsLoading, error: statsError } = useQuery<Stats>({
@@ -100,6 +120,10 @@ export default function AdminDashboard() {
 
   const handleLoopClick = (loopId: number) => {
     setLocation(`/admin/loops/${loopId}`);
+  };
+
+  const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setSearchInput(e.target.value);
   };
 
   return (
@@ -202,8 +226,8 @@ export default function AdminDashboard() {
               <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
               <Input
                 placeholder="Search loops..."
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
+                value={searchInput}
+                onChange={handleSearchChange}
                 className="pl-8"
               />
             </div>
@@ -264,21 +288,4 @@ export default function AdminDashboard() {
       </Card>
     </div>
   );
-}
-
-// Custom hook for debouncing values
-function useDebounce<T>(value: T, delay: number): T {
-  const [debouncedValue, setDebouncedValue] = useState<T>(value);
-
-  useEffect(() => {
-    const handler = setTimeout(() => {
-      setDebouncedValue(value);
-    }, delay);
-
-    return () => {
-      clearTimeout(handler);
-    };
-  }, [value, delay]);
-
-  return debouncedValue;
 }
