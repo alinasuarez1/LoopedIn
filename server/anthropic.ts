@@ -26,39 +26,53 @@ export async function generateNewsletter(
   try {
     const updatesList = updates.map(u => {
       const mediaHtml = u.mediaUrls?.map((url, index) => 
-        `\n![Update media ${index + 1}](${url})`
+        `<div class="my-4">
+           <img src="${url}" alt="Update media ${index + 1}" class="rounded-lg shadow-md max-w-full h-auto" />
+         </div>`
       ).join('\n') || '';
 
-      return `${u.userName}: ${u.content}${mediaHtml}`;
-    }).join('\n\n');
+      return `### Update from ${u.userName}
+
+${u.content}
+
+${mediaHtml}`;
+    }).join('\n\n---\n\n');
 
     const vibeDescription = vibe.join(', ');
-    const customHeader = options?.customHeader ? `\nCustom Header: ${options.customHeader}` : '';
-    const customClosing = options?.customClosing ? `\nCustom Closing: ${options.customClosing}` : '';
+    const customHeader = options?.customHeader || '';
+    const customClosing = options?.customClosing || '';
 
-    const prompt = `Generate a friendly and engaging newsletter for the group "${loopName}". 
+    const prompt = `Generate a well-structured newsletter for the group "${loopName}". 
 The newsletter should have a ${vibeDescription} tone.
 
-${customHeader}
+${customHeader ? `Use this custom header: ${customHeader}\n` : ''}
 
 Here are the updates from members:
 
 ${updatesList}
 
 Please format this as a well-structured newsletter that includes:
-1. A warm, personalized greeting that matches the group's vibe
-2. A brief overview highlighting key themes or patterns from the updates
-3. Individual member updates, organized in an engaging way
-4. Key highlights or noteworthy moments
-5. A forward-looking element that builds anticipation for the next update${customClosing}
 
-Use markdown formatting for better readability. Make sure to:
-- Break up long paragraphs
-- Use bullet points for lists
-- Add emphasis using bold or italics where appropriate
-- Include section headers
-- Maintain a consistent, friendly tone throughout
-- Preserve all image markdown syntax exactly as provided in the updates`;
+# [Engaging Title for ${loopName}]
+
+## 🌟 Highlights
+[Brief overview highlighting key themes or patterns from the updates]
+
+## 📝 Member Updates
+[Individual member updates, organized in an engaging way]
+
+## 🎯 Looking Forward
+[Brief forward-looking section that builds anticipation for the next update]
+
+${customClosing ? `\n${customClosing}` : ''}
+
+Make sure to:
+- Use HTML tags for proper formatting (<h1>, <h2>, etc.)
+- Keep section headers clear and consistent
+- Maintain a friendly, ${vibeDescription} tone throughout
+- Preserve all image tags exactly as provided
+- Add emoji icons to section headers for visual appeal
+- Break up text into digestible paragraphs`;
 
     const response = await anthropic.messages.create({
       model: 'claude-3-5-sonnet-20241022',
@@ -69,17 +83,22 @@ Use markdown formatting for better readability. Make sure to:
     const newsletterContent = response.content[0].text;
 
     // Add metadata and formatting
-    return `---
-Generated for: ${loopName}
-Date: ${new Date().toLocaleDateString()}
----
+    return `
+<div class="newsletter-content">
+  <header class="text-center mb-8">
+    <h1 class="text-4xl font-bold mb-2">${loopName}</h1>
+    <div class="text-sm text-gray-500">
+      Generated on ${new Date().toLocaleDateString()}
+    </div>
+  </header>
 
-${newsletterContent}
+  ${newsletterContent}
 
----
-This newsletter was generated with ❤️ by Loop
-Want to contribute to the next update? Just reply to this message!
----`;
+  <footer class="mt-8 pt-4 border-t border-gray-200 text-center text-sm text-gray-500">
+    <p>This newsletter was generated with ❤️ by Loop</p>
+    <p class="mt-1">Want to contribute to the next update? Just reply to this message!</p>
+  </footer>
+</div>`;
   } catch (error) {
     console.error('Failed to generate newsletter:', error);
     throw new Error('Failed to generate newsletter. Please try again later.');
