@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import {
   Card,
   CardContent,
@@ -61,10 +61,9 @@ export default function AdminDashboard() {
   const [, setLocation] = useLocation();
   const [searchInput, setSearchInput] = useState("");
   const [sortBy, setSortBy] = useState("recent");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
 
-  // Debounce search to avoid too many API calls
-  const [debouncedSearch, setDebouncedSearch] = useState(searchInput);
-
+  // Debounce search with cleanup
   useEffect(() => {
     const timer = setTimeout(() => {
       setDebouncedSearch(searchInput);
@@ -73,26 +72,32 @@ export default function AdminDashboard() {
     return () => clearTimeout(timer);
   }, [searchInput]);
 
-  const { data: loops, isLoading: isLoopsLoading, error: loopsError } = useQuery<Loop[]>({
-    queryKey: ["/api/admin/loops", { search: debouncedSearch, sort: sortBy }],
-    queryFn: async ({ queryKey }) => {
-      const [_, params] = queryKey;
-      const searchParams = new URLSearchParams();
-      if (params.search) searchParams.append("search", params.search);
-      if (params.sort) searchParams.append("sort", params.sort);
+  // Fetch loops with search and sort
+  const fetchLoops = useCallback(async () => {
+    const params = new URLSearchParams();
+    if (debouncedSearch) params.append("search", debouncedSearch);
+    if (sortBy) params.append("sort", sortBy);
 
-      const response = await fetch(`/api/admin/loops?${searchParams.toString()}`, {
-        credentials: "include"
-      });
+    const response = await fetch(`/api/admin/loops?${params}`, {
+      credentials: "include"
+    });
 
-      if (!response.ok) {
-        const error = await response.text();
-        throw new Error(error || response.statusText);
-      }
+    if (!response.ok) {
+      const error = await response.text();
+      throw new Error(error || "Failed to fetch loops");
+    }
 
-      return response.json();
-    },
-    staleTime: 1000, // Prevent rapid refetches
+    return response.json();
+  }, [debouncedSearch, sortBy]);
+
+  const {
+    data: loops,
+    isLoading: isLoopsLoading,
+    error: loopsError
+  } = useQuery<Loop[]>({
+    queryKey: ["loops", debouncedSearch, sortBy],
+    queryFn: fetchLoops,
+    staleTime: 1000,
   });
 
   const { data: stats, isLoading: isStatsLoading, error: statsError } = useQuery<Stats>({
