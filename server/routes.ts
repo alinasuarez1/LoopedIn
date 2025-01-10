@@ -7,6 +7,7 @@ import { and, eq } from "drizzle-orm";
 import { generateNewsletter, analyzeUpdatesForHighlights } from "./anthropic";
 import { sendWelcomeMessage } from "./twilio";
 import { uploadMediaFromUrl } from "./storage";
+import { randomBytes } from "crypto";
 
 export function registerRoutes(app: Express): Server {
   // Setup authentication routes
