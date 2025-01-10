@@ -12,7 +12,7 @@ import {
 } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, Plus, ArrowLeft } from "lucide-react";
+import { Loader2, Plus, ArrowLeft, Trash2 } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -234,9 +234,64 @@ export default function LoopManager() {
                     {loop.updates.map((update) => (
                       <Card key={update.id}>
                         <CardContent className="pt-4">
-                          <p className="text-sm text-muted-foreground">
-                            {new Date(update.createdAt!).toLocaleString()}
-                          </p>
+                          <div className="flex justify-between items-start">
+                            <p className="text-sm text-muted-foreground">
+                              {new Date(update.createdAt!).toLocaleString()}
+                            </p>
+                            <AlertDialog>
+                              <AlertDialogTrigger asChild>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="h-8 w-8 text-muted-foreground hover:text-destructive"
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                </Button>
+                              </AlertDialogTrigger>
+                              <AlertDialogContent>
+                                <AlertDialogHeader>
+                                  <AlertDialogTitle>Delete Update?</AlertDialogTitle>
+                                  <AlertDialogDescription>
+                                    This action cannot be undone. This will permanently delete this update and any associated media.
+                                  </AlertDialogDescription>
+                                </AlertDialogHeader>
+                                <AlertDialogFooter>
+                                  <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                  <AlertDialogAction
+                                    onClick={async () => {
+                                      try {
+                                        const response = await fetch(`/api/loops/${id}/updates/${update.id}`, {
+                                          method: 'DELETE',
+                                          credentials: 'include',
+                                        });
+
+                                        if (!response.ok) {
+                                          throw new Error(await response.text());
+                                        }
+
+                                        // Invalidate and refetch loop data
+                                        await queryClient.invalidateQueries({ queryKey: [`/api/loops/${id}`] });
+
+                                        toast({
+                                          title: "Success",
+                                          description: "Update deleted successfully",
+                                        });
+                                      } catch (error) {
+                                        toast({
+                                          title: "Error",
+                                          description: error instanceof Error ? error.message : "Failed to delete update",
+                                          variant: "destructive",
+                                        });
+                                      }
+                                    }}
+                                    className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                                  >
+                                    Delete
+                                  </AlertDialogAction>
+                                </AlertDialogFooter>
+                              </AlertDialogContent>
+                            </AlertDialog>
+                          </div>
                           <p className="mt-2">{update.content}</p>
                           {update.mediaUrls && update.mediaUrls.length > 0 && (
                             <div className="mt-2 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
