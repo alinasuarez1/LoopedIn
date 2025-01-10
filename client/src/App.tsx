@@ -34,7 +34,7 @@ function App() {
           <Switch>
             <Route path="/profile" component={ProfilePage} />
             <Route path="/loops/:id" component={LoopManager} />
-            {user.isAdmin && (
+            {user.isPrivileged && (
               <>
                 <Route path="/admin/loops/:id" component={AdminLoopDetails} />
                 <Route path="/admin" component={AdminDashboard} />
