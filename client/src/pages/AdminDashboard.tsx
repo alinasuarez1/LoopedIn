@@ -74,20 +74,25 @@ export default function AdminDashboard() {
   }, [searchInput]);
 
   const { data: loops, isLoading: isLoopsLoading, error: loopsError } = useQuery<Loop[]>({
-    queryKey: ["/api/admin/loops", debouncedSearch, sortBy],
-    queryFn: async () => {
+    queryKey: ["/api/admin/loops", { search: debouncedSearch, sort: sortBy }],
+    queryFn: async ({ queryKey }) => {
+      const [_, params] = queryKey;
       const searchParams = new URLSearchParams();
-      if (debouncedSearch) searchParams.append("search", debouncedSearch);
-      if (sortBy) searchParams.append("sort", sortBy);
+      if (params.search) searchParams.append("search", params.search);
+      if (params.sort) searchParams.append("sort", params.sort);
 
       const response = await fetch(`/api/admin/loops?${searchParams.toString()}`, {
         credentials: "include"
       });
+
       if (!response.ok) {
-        throw new Error(`Failed to fetch loops: ${response.statusText}`);
+        const error = await response.text();
+        throw new Error(error || response.statusText);
       }
+
       return response.json();
     },
+    staleTime: 1000, // Prevent rapid refetches
   });
 
   const { data: stats, isLoading: isStatsLoading, error: statsError } = useQuery<Stats>({
@@ -257,8 +262,8 @@ export default function AdminDashboard() {
             </TableHeader>
             <TableBody>
               {loops?.map((loop) => (
-                <TableRow 
-                  key={loop.id} 
+                <TableRow
+                  key={loop.id}
                   className="cursor-pointer hover:bg-muted/50"
                   onClick={() => handleLoopClick(loop.id)}
                 >
