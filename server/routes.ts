@@ -129,11 +129,20 @@ export function registerRoutes(app: Express): Server {
 
       console.log(`Saved ${savedUpdates.length} updates for user ${user.id}`);
 
+      // Return a TwiML response with appropriate message
+      let responseMessage = "Thanks for your update";
+      if (loopNameMatch) {
+        responseMessage += ` to ${loopNameMatch[1]}`;
+      } else if (savedUpdates.length > 1) {
+        responseMessage += `s to all your loops`;
+      }
+      responseMessage += "!";
+
       // Return a TwiML response
       res.type('text/xml').send(`
         <?xml version="1.0" encoding="UTF-8"?>
         <Response>
-          <Message>Thanks for your update${savedUpdates.length > 1 ? 's' : ''}!</Message>
+          <Message>${responseMessage}</Message>
         </Response>
       `);
     } catch (error) {
