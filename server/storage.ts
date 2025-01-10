@@ -14,7 +14,7 @@ const storage = new Storage({
   credentials,
 });
 
-const bucketName = 'loop-media-storage';
+const bucketName = 'loopedin-media';
 let bucket = storage.bucket(bucketName);
 
 // Process and save media from Twilio
