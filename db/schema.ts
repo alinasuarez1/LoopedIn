@@ -41,7 +41,7 @@ export const updates = pgTable("updates", {
   loopId: integer("loop_id").references(() => loops.id),
   userId: integer("user_id").references(() => users.id),
   content: text("content").notNull(),
-  mediaUrl: text("media_url"),
+  mediaUrls: json("media_urls").$type<string[]>().default([]),
   createdAt: timestamp("created_at").defaultNow(),
 });
 

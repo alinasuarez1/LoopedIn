@@ -16,12 +16,21 @@ export function registerRoutes(app: Express): Server {
   // Twilio Webhook for incoming messages
   app.post("/api/webhooks/twilio", async (req, res) => {
     try {
-      const { From, Body, MediaUrl0, MediaContentType0 } = req.body;
+      const { From, Body } = req.body;
+
+      // Extract all media URLs and content types
+      const mediaUrls: { url: string; contentType: string }[] = [];
+      for (let i = 0; i <= 9; i++) {
+        const url = req.body[`MediaUrl${i}`];
+        const contentType = req.body[`MediaContentType${i}`];
+        if (url && contentType) {
+          mediaUrls.push({ url, contentType });
+        }
+      }
+
       console.log('Received Twilio webhook:', {
         from: From,
-        hasMedia: !!MediaUrl0,
-        mediaUrl: MediaUrl0,
-        mediaContentType: MediaContentType0,
+        mediaCount: mediaUrls.length,
         messageBody: Body,
         rawBody: req.body
       });
@@ -65,21 +74,22 @@ export function registerRoutes(app: Express): Server {
         return res.status(404).send("Specified loop not found");
       }
 
-      // If there's a media URL, process and save it
-      let mediaUrl = null;
-      if (MediaUrl0 && MediaContentType0) {
+      // Process all media files
+      let processedMediaUrls: string[] = [];
+      if (mediaUrls.length > 0) {
         try {
-          console.log('Processing media from Twilio:', {
-            url: MediaUrl0,
-            contentType: MediaContentType0,
-            userId: user.id
-          });
-
-          mediaUrl = await processAndSaveMedia(MediaUrl0, MediaContentType0);
-          console.log('Successfully processed and saved media:', {
-            originalUrl: MediaUrl0,
-            newUrl: mediaUrl
-          });
+          console.log(`Processing ${mediaUrls.length} media files`);
+          processedMediaUrls = await Promise.all(
+            mediaUrls.map(async ({ url, contentType }) => {
+              console.log('Processing media:', {
+                url,
+                contentType,
+                userId: user.id
+              });
+              return processAndSaveMedia(url, contentType);
+            })
+          );
+          console.log('Successfully processed all media:', processedMediaUrls);
         } catch (error) {
           console.error('Failed to process media:', error);
           if (error instanceof Error) {
@@ -102,7 +112,7 @@ export function registerRoutes(app: Express): Server {
               loopId: membership.loop!.id,
               userId: user.id,
               content: Body,
-              mediaUrl: mediaUrl,
+              mediaUrls: processedMediaUrls,
             })
             .returning();
 
@@ -110,8 +120,8 @@ export function registerRoutes(app: Express): Server {
             updateId: update[0].id,
             loopId: membership.loop!.id,
             userId: user.id,
-            hasMediaUrl: !!mediaUrl,
-            mediaUrl: mediaUrl
+            mediaCount: processedMediaUrls.length,
+            mediaUrls: processedMediaUrls
           });
           return update[0];
         })
