@@ -27,18 +27,62 @@ import { useToast } from "@/hooks/use-toast";
 import { Loader2, Search } from "lucide-react";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 
+interface Loop {
+  id: number;
+  name: string;
+  frequency: string;
+  creator?: {
+    firstName: string;
+    lastName: string;
+    email: string;
+  };
+  memberCount: number;
+  lastNewsletter: string | null;
+  createdAt: string;
+}
+
+interface Stats {
+  totalLoops: number;
+  totalMembers: number;
+  loopGrowth: Array<{
+    date: string;
+    count: number;
+  }>;
+  memberGrowth: Array<{
+    date: string;
+    count: number;
+  }>;
+}
+
 export default function AdminDashboard() {
   const { toast } = useToast();
   const [search, setSearch] = useState("");
   const [sortBy, setSortBy] = useState("recent");
 
-  const { data: loops, isLoading: isLoopsLoading } = useQuery({
+  const { data: loops, isLoading: isLoopsLoading, error: loopsError } = useQuery<Loop[]>({
     queryKey: ["/api/admin/loops", { search, sort: sortBy }],
+    retry: false,
   });
 
-  const { data: stats, isLoading: isStatsLoading } = useQuery({
+  const { data: stats, isLoading: isStatsLoading, error: statsError } = useQuery<Stats>({
     queryKey: ["/api/admin/stats"],
+    retry: false,
   });
+
+  if (loopsError || statsError) {
+    return (
+      <div className="container mx-auto p-4">
+        <Card className="border-destructive">
+          <CardHeader>
+            <CardTitle className="text-destructive">Error</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p>{(loopsError || statsError)?.message || "Failed to load admin dashboard"}</p>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
 
   if (isLoopsLoading || isStatsLoading) {
     return (
@@ -168,7 +212,7 @@ export default function AdminDashboard() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {loops?.map((loop: any) => (
+              {loops?.map((loop) => (
                 <TableRow key={loop.id}>
                   <TableCell className="font-medium">{loop.name}</TableCell>
                   <TableCell>
