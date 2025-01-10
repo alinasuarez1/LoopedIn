@@ -16,7 +16,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
-import { Loader2 } from "lucide-react";
+import { Loader2, ExternalLink } from "lucide-react";
 import { format } from "date-fns";
 import { useToast } from "@/hooks/use-toast";
 
@@ -59,6 +59,7 @@ interface LoopDetails {
     id: number;
     content: string;
     sentAt: string;
+    urlId: string; // Added urlId
   }>;
 }
 
@@ -131,7 +132,7 @@ export default function AdminLoopDetails() {
     <div className="container mx-auto p-4 space-y-6">
       <div className="flex justify-between items-center">
         <h1 className="text-3xl font-bold">{loop.name}</h1>
-        <Button 
+        <Button
           onClick={handleGenerateNewsletter}
           disabled={generateNewsletterMutation.isPending}
         >
@@ -249,27 +250,43 @@ export default function AdminLoopDetails() {
         </CardContent>
       </Card>
 
-      {/* Newsletters */}
+      {/* Newsletters section */}
       <Card>
         <CardHeader>
-          <CardTitle>Newsletters</CardTitle>
-          <CardDescription>{loop.newsletters.length} total newsletters</CardDescription>
+          <CardTitle>Past Newsletters</CardTitle>
+          <CardDescription>
+            {loop.newsletters.length} total newsletters
+          </CardDescription>
         </CardHeader>
-        <CardContent className="space-y-4">
-          {loop.newsletters.map((newsletter) => (
-            <Card key={newsletter.id}>
-              <CardHeader>
-                <time className="text-sm text-muted-foreground">
-                  {format(new Date(newsletter.sentAt), "PPp")}
-                </time>
-              </CardHeader>
-              <CardContent>
-                <div className="prose prose-sm max-w-none">
-                  {newsletter.content}
+        <CardContent>
+          <div className="space-y-2">
+            {loop.newsletters.map((newsletter) => (
+              <div
+                key={newsletter.id}
+                className="flex items-center justify-between p-3 bg-muted/50 rounded-lg hover:bg-muted transition-colors"
+              >
+                <div className="flex flex-col">
+                  <time className="text-sm text-muted-foreground">
+                    {format(new Date(newsletter.sentAt), "PPp")}
+                  </time>
                 </div>
-              </CardContent>
-            </Card>
-          ))}
+                <a
+                  href={`/newsletters/${newsletter.urlId}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center gap-2 text-primary hover:underline"
+                >
+                  View Newsletter
+                  <ExternalLink className="h-4 w-4" />
+                </a>
+              </div>
+            ))}
+            {loop.newsletters.length === 0 && (
+              <p className="text-center text-muted-foreground py-4">
+                No newsletters have been generated yet
+              </p>
+            )}
+          </div>
         </CardContent>
       </Card>
     </div>
