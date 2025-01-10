@@ -31,35 +31,28 @@ export function registerRoutes(app: Express): Server {
     const { search, sort = "recent" } = req.query;
 
     try {
-      let query = db.query.loops.findMany({
+      let baseQuery = {
         with: {
           creator: true,
           members: true,
           updates: true,
           newsletters: true,
         },
-      });
+      };
+
+      let whereClause = undefined;
 
       // Apply search filter if provided
-      if (search && typeof search === 'string') {
-        query = db.query.loops.findMany({
-          where: ilike(loops.name, `%${search}%`),
-          with: {
-            creator: true,
-            members: true,
-            updates: true,
-            newsletters: true,
-          },
-        });
+      if (search && typeof search === 'string' && search.trim()) {
+        whereClause = ilike(loops.name, `%${search.trim()}%`);
       }
 
-      // Apply sorting
-      if (sort === "recent") {
-        query = db.query.loops.findMany({
-          ...query,
-          orderBy: desc(loops.createdAt),
-        });
-      }
+      // Construct the query
+      let query = db.query.loops.findMany({
+        ...baseQuery,
+        ...(whereClause ? { where: whereClause } : {}),
+        orderBy: sort === "recent" ? [desc(loops.createdAt)] : undefined,
+      });
 
       const allLoops = await query;
 
