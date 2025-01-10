@@ -240,12 +240,18 @@ export default function LoopManager() {
                           <p className="mt-2">{update.content}</p>
                           {update.mediaUrl && (
                             <div className="mt-2 relative">
+                              {/* Add debug logging */}
+                              {console.log('Loading image:', update.mediaUrl)}
                               <img
                                 src={update.mediaUrl}
                                 alt="Update media"
                                 className="rounded-md max-w-sm w-full h-auto object-cover"
                                 loading="lazy"
+                                onLoad={(e) => {
+                                  console.log('Image loaded successfully:', update.mediaUrl);
+                                }}
                                 onError={(e) => {
+                                  console.error('Failed to load image:', update.mediaUrl);
                                   // Replace broken image with a placeholder
                                   const target = e.target as HTMLImageElement;
                                   target.onerror = null; // Prevent infinite loop
