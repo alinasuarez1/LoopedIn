@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { useState, useEffect, useCallback } from "react";
+import { useState } from "react";
 import {
   Card,
   CardContent,
@@ -61,42 +61,34 @@ export default function AdminDashboard() {
   const [, setLocation] = useLocation();
   const [searchInput, setSearchInput] = useState("");
   const [sortBy, setSortBy] = useState("recent");
-  const [debouncedSearch, setDebouncedSearch] = useState("");
-
-  // Debounce search with cleanup
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      setDebouncedSearch(searchInput);
-    }, 300);
-
-    return () => clearTimeout(timer);
-  }, [searchInput]);
-
-  // Fetch loops with search and sort
-  const fetchLoops = useCallback(async () => {
-    const params = new URLSearchParams();
-    if (debouncedSearch) params.append("search", debouncedSearch);
-    if (sortBy) params.append("sort", sortBy);
-
-    const response = await fetch(`/api/admin/loops?${params}`, {
-      credentials: "include"
-    });
-
-    if (!response.ok) {
-      const error = await response.text();
-      throw new Error(error || "Failed to fetch loops");
-    }
-
-    return response.json();
-  }, [debouncedSearch, sortBy]);
 
   const {
     data: loops,
     isLoading: isLoopsLoading,
-    error: loopsError
+    error: loopsError,
+    refetch: refetchLoops,
   } = useQuery<Loop[]>({
-    queryKey: ["loops", debouncedSearch, sortBy],
-    queryFn: fetchLoops,
+    queryKey: ["admin-loops", searchInput, sortBy],
+    queryFn: async () => {
+      const params = new URLSearchParams();
+      if (searchInput.trim()) {
+        params.append("search", searchInput.trim());
+      }
+      if (sortBy) {
+        params.append("sort", sortBy);
+      }
+
+      const response = await fetch(`/api/admin/loops?${params}`, {
+        credentials: "include",
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(errorText || "Failed to fetch loops");
+      }
+
+      return response.json();
+    },
     staleTime: 1000,
   });
 
