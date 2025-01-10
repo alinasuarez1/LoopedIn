@@ -2,6 +2,7 @@ import { Storage } from '@google-cloud/storage';
 import fetch from 'node-fetch';
 import { readFileSync } from 'fs';
 import path from 'path';
+import { Buffer } from 'buffer';
 
 // Initialize storage client with credentials from JSON file
 const credentialsPath = path.join(process.cwd(), 'attached_assets', 'loopedin-446520-c3e0d129ffce.json');
@@ -15,48 +16,60 @@ const storage = new Storage({
 const bucketName = 'loop-media-storage';
 let bucket = storage.bucket(bucketName);
 
-// Ensure bucket exists and is properly configured
-async function initializeBucket() {
+// Process and save media from Twilio
+export async function processAndSaveMedia(mediaUrl: string, contentType: string): Promise<string> {
+  console.log(`Processing media from URL: ${mediaUrl}`);
+  console.log(`Content type: ${contentType}`);
+
   try {
-    console.log('Checking if bucket exists:', bucketName);
-    const [exists] = await bucket.exists();
+    // Download the media from Twilio URL with authentication
+    const authString = Buffer.from(
+      `${process.env.TWILIO_ACCOUNT_SID}:${process.env.TWILIO_AUTH_TOKEN}`
+    ).toString('base64');
 
-    if (!exists) {
-      console.log('Creating storage bucket:', bucketName);
-      [bucket] = await storage.createBucket(bucketName, {
-        location: 'US',
-        storageClass: 'STANDARD'
-      });
+    const response = await fetch(mediaUrl, {
+      headers: {
+        'Authorization': `Basic ${authString}`
+      }
+    });
+
+    if (!response.ok) {
+      throw new Error(`Failed to fetch media: ${response.statusText}`);
     }
 
-    // Configure CORS
-    try {
-      console.log('Configuring CORS for bucket');
-      await bucket.setCorsConfiguration([
-        {
-          maxAgeSeconds: 3600,
-          method: ['GET', 'HEAD', 'OPTIONS'],
-          origin: ['*'],
-          responseHeader: ['Content-Type', 'Content-Length', 'Accept-Ranges'],
-        },
-      ]);
-      console.log('CORS configuration successful');
-    } catch (corsError) {
-      console.error('CORS configuration failed:', corsError);
-    }
+    // Convert the response to a buffer
+    const mediaBuffer = await response.buffer();
 
-    // Make bucket public
-    try {
-      console.log('Making bucket public');
-      await bucket.makePublic();
-      console.log('Bucket public access configured successfully');
-    } catch (publicError) {
-      console.error('Failed to make bucket public:', publicError);
-    }
+    // Create a unique filename with proper extension
+    const extension = contentType.split('/')[1] || 'jpg';
+    const filename = `media/${Date.now()}-${Math.random().toString(36).substring(7)}.${extension}`;
+    const file = bucket.file(filename);
 
-    console.log('Storage initialized successfully');
+    console.log('Uploading to GCS with filename:', filename);
+
+    // Upload to Google Cloud Storage
+    await file.save(mediaBuffer, {
+      metadata: {
+        contentType,
+        cacheControl: 'public, max-age=31536000',
+      },
+      resumable: false,
+      validation: 'md5'
+    });
+
+    // Make the file publicly accessible
+    await file.makePublic();
+
+    // Return the public URL
+    const publicUrl = `https://storage.googleapis.com/${bucketName}/${filename}`;
+    console.log('Successfully uploaded media. Public URL:', publicUrl);
+
+    return publicUrl;
   } catch (error) {
-    console.error('Error initializing storage:', error);
+    console.error('Media processing failed:', {
+      error: error instanceof Error ? error.message : 'Unknown error',
+      stack: error instanceof Error ? error.stack : undefined
+    });
     throw error;
   }
 }
@@ -102,6 +115,52 @@ export async function uploadMediaFromUrl(mediaUrl: string, userId: number): Prom
     return publicUrl;
   } catch (error) {
     console.error('Error uploading media:', error);
+    throw error;
+  }
+}
+
+// Ensure bucket exists and is properly configured
+async function initializeBucket() {
+  try {
+    console.log('Checking if bucket exists:', bucketName);
+    const [exists] = await bucket.exists();
+
+    if (!exists) {
+      console.log('Creating storage bucket:', bucketName);
+      [bucket] = await storage.createBucket(bucketName, {
+        location: 'US',
+        storageClass: 'STANDARD'
+      });
+    }
+
+    // Configure CORS
+    try {
+      console.log('Configuring CORS for bucket');
+      await bucket.setCorsConfiguration([
+        {
+          maxAgeSeconds: 3600,
+          method: ['GET', 'HEAD', 'OPTIONS'],
+          origin: ['*'],
+          responseHeader: ['Content-Type', 'Content-Length', 'Accept-Ranges'],
+        },
+      ]);
+      console.log('CORS configuration successful');
+    } catch (corsError) {
+      console.error('CORS configuration failed:', corsError);
+    }
+
+    // Make bucket public
+    try {
+      console.log('Making bucket public');
+      await bucket.makePublic();
+      console.log('Bucket public access configured successfully');
+    } catch (publicError) {
+      console.error('Failed to make bucket public:', publicError);
+    }
+
+    console.log('Storage initialized successfully');
+  } catch (error) {
+    console.error('Error initializing storage:', error);
     throw error;
   }
 }

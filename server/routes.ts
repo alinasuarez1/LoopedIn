@@ -4,9 +4,9 @@ import { setupAuth } from "./auth";
 import { db } from "@db";
 import { loops, loopMembers, updates, newsletters, users, type User } from "@db/schema";
 import { and, eq } from "drizzle-orm";
-import { generateNewsletter, analyzeUpdatesForHighlights } from "./anthropic";
+import { generateNewsletter } from "./anthropic";
 import { sendWelcomeMessage } from "./twilio";
-import { uploadMediaFromUrl } from "./storage";
+import { processAndSaveMedia } from "./storage";
 import { randomBytes } from "crypto";
 
 export function registerRoutes(app: Express): Server {
@@ -23,7 +23,7 @@ export function registerRoutes(app: Express): Server {
         mediaUrl: MediaUrl0,
         mediaContentType: MediaContentType0,
         messageBody: Body,
-        rawBody: req.body // Log the entire request body for debugging
+        rawBody: req.body
       });
 
       // Clean up the phone number (remove the '+' prefix if present)
@@ -65,24 +65,23 @@ export function registerRoutes(app: Express): Server {
         return res.status(404).send("Specified loop not found");
       }
 
-      // If there's a media URL, upload it to Google Cloud Storage
+      // If there's a media URL, process and save it
       let mediaUrl = null;
-      if (MediaUrl0) {
+      if (MediaUrl0 && MediaContentType0) {
         try {
-          console.log('Attempting to upload media from Twilio URL:', {
+          console.log('Processing media from Twilio:', {
             url: MediaUrl0,
             contentType: MediaContentType0,
             userId: user.id
           });
 
-          mediaUrl = await uploadMediaFromUrl(MediaUrl0, user.id);
-          console.log('Successfully uploaded media to Google Cloud Storage:', {
+          mediaUrl = await processAndSaveMedia(MediaUrl0, MediaContentType0);
+          console.log('Successfully processed and saved media:', {
             originalUrl: MediaUrl0,
             newUrl: mediaUrl
           });
         } catch (error) {
-          console.error('Failed to upload media:', error);
-          // Log more details about the error
+          console.error('Failed to process media:', error);
           if (error instanceof Error) {
             console.error('Error details:', {
               message: error.message,
@@ -112,7 +111,7 @@ export function registerRoutes(app: Express): Server {
             loopId: membership.loop!.id,
             userId: user.id,
             hasMediaUrl: !!mediaUrl,
-            mediaUrl: mediaUrl // Log the actual URL for debugging
+            mediaUrl: mediaUrl
           });
           return update[0];
         })
