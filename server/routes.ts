@@ -133,7 +133,7 @@ export function registerRoutes(app: Express): Server {
       res.type('text/xml').send(`
         <?xml version="1.0" encoding="UTF-8"?>
         <Response>
-          <Message>Thanks for your update${targetLoops.length > 1 ? 's' : ''}!</Message>
+          <Message>Thanks for your update${savedUpdates.length > 1 ? 's' : ''}!</Message>
         </Response>
       `);
     } catch (error) {
@@ -502,6 +502,53 @@ export function registerRoutes(app: Express): Server {
 
     res.json(update);
   });
+
+  // Updates
+  app.delete("/api/loops/:loopId/updates/:updateId", async (req, res) => {
+    const user = req.user as User | undefined;
+    if (!user?.id) {
+      return res.status(401).send("Not authenticated");
+    }
+
+    try {
+      // Verify the user owns this update or is the loop creator
+      const [update] = await db
+        .select()
+        .from(updates)
+        .where(eq(updates.id, parseInt(req.params.updateId)))
+        .limit(1);
+
+      if (!update) {
+        return res.status(404).send("Update not found");
+      }
+
+      // Check if user owns the update or is the loop creator
+      const [loop] = await db
+        .select()
+        .from(loops)
+        .where(eq(loops.id, parseInt(req.params.loopId)))
+        .limit(1);
+
+      if (!loop) {
+        return res.status(404).send("Loop not found");
+      }
+
+      if (update.userId !== user.id && loop.creatorId !== user.id) {
+        return res.status(403).send("Not authorized to delete this update");
+      }
+
+      // Delete the update
+      await db
+        .delete(updates)
+        .where(eq(updates.id, parseInt(req.params.updateId)));
+
+      res.json({ message: "Update deleted successfully" });
+    } catch (error) {
+      console.error("Error deleting update:", error);
+      res.status(500).send("Failed to delete update");
+    }
+  });
+
 
   // Newsletters
   app.post("/api/loops/:id/newsletters", async (req, res) => {
