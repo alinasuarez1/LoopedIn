@@ -12,29 +12,27 @@ const storage = new Storage({
   credentials,
 });
 
-const bucketName = 'loop-media-storage';
+const bucketName = 'loopedin-media';
+let bucket = storage.bucket(bucketName);
 
 // Ensure bucket exists and is properly configured
 async function initializeBucket() {
   try {
     console.log('Checking if bucket exists:', bucketName);
-    const [exists] = await storage.bucket(bucketName).exists();
+    const [exists] = await bucket.exists();
 
     if (!exists) {
-      console.log('Bucket does not exist, creating...');
-      await storage.createBucket(bucketName, {
+      console.log('Creating storage bucket:', bucketName);
+      [bucket] = await storage.createBucket(bucketName, {
         location: 'US',
-        storageClass: 'STANDARD',
+        storageClass: 'STANDARD'
       });
-      console.log(`Bucket ${bucketName} created successfully`);
-    } else {
-      console.log('Bucket already exists');
     }
 
     // Configure CORS
     try {
       console.log('Configuring CORS for bucket');
-      await storage.bucket(bucketName).setCorsConfiguration([
+      await bucket.setCorsConfiguration([
         {
           maxAgeSeconds: 3600,
           method: ['GET', 'HEAD', 'OPTIONS'],
@@ -44,30 +42,29 @@ async function initializeBucket() {
       ]);
       console.log('CORS configuration successful');
     } catch (corsError) {
-      console.warn('CORS configuration failed:', corsError);
-      // Continue even if CORS fails as the bucket might still work
+      console.error('CORS configuration failed:', corsError);
     }
 
     // Make bucket public
     try {
-      console.log('Setting bucket public access');
-      await storage.bucket(bucketName).makePublic();
+      console.log('Making bucket public');
+      await bucket.makePublic();
       console.log('Bucket public access configured successfully');
     } catch (publicError) {
-      console.warn('Failed to make bucket public:', publicError);
-      // Continue as the bucket might already be public
+      console.error('Failed to make bucket public:', publicError);
     }
 
+    console.log('Storage initialized successfully');
   } catch (error) {
-    console.error('Error during bucket initialization:', error);
-    // Log error but don't throw - the bucket might still be usable
+    console.error('Error initializing storage:', error);
+    throw error;
   }
 }
 
 // Upload media from URL to Google Cloud Storage
 export async function uploadMediaFromUrl(mediaUrl: string, userId: number): Promise<string> {
   try {
-    console.log(`Starting upload process for media from URL: ${mediaUrl}`);
+    console.log('Starting upload from URL:', mediaUrl);
 
     // Download the media from Twilio
     const response = await fetch(mediaUrl);
@@ -75,28 +72,30 @@ export async function uploadMediaFromUrl(mediaUrl: string, userId: number): Prom
       throw new Error(`Failed to fetch media from ${mediaUrl}: ${response.statusText}`);
     }
 
-    const contentType = response.headers.get('content-type');
-    console.log(`Media content type: ${contentType}`);
-
     const buffer = await response.buffer();
-    const fileName = `user-${userId}/${Date.now()}-${Math.random().toString(36).substring(7)}`;
+    const contentType = response.headers.get('content-type');
 
-    console.log(`Uploading to GCS with filename: ${fileName}`);
+    // Create a unique filename
+    const filename = `media/user-${userId}/${Date.now()}-${Math.random().toString(36).substring(7)}`;
+    const file = bucket.file(filename);
 
-    const file = storage.bucket(bucketName).file(fileName);
+    console.log('Uploading to GCS with filename:', filename);
 
-    // Upload to Google Cloud Storage with proper content type
+    // Upload to Google Cloud Storage
     await file.save(buffer, {
       metadata: {
         contentType: contentType || 'application/octet-stream',
       },
-      public: true,
-      validation: 'md5',
+      resumable: false,
+      validation: 'md5'
     });
 
-    // Get the public URL
-    const publicUrl = `https://storage.googleapis.com/${bucketName}/${fileName}`;
-    console.log(`Successfully uploaded media. Public URL: ${publicUrl}`);
+    // Make the file publicly accessible
+    await file.makePublic();
+
+    // Return the public URL
+    const publicUrl = `https://storage.googleapis.com/${bucketName}/${filename}`;
+    console.log('Successfully uploaded media. Public URL:', publicUrl);
 
     return publicUrl;
   } catch (error) {
@@ -105,6 +104,6 @@ export async function uploadMediaFromUrl(mediaUrl: string, userId: number): Prom
   }
 }
 
-// Initialize bucket when the module loads
+// Initialize storage when the module loads
 console.log('Starting storage service initialization');
 initializeBucket().catch(console.error);
