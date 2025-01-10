@@ -7,6 +7,7 @@ import Dashboard from "./pages/Dashboard";
 import LoopManager from "./pages/LoopManager";
 import AdminDashboard from "./pages/AdminDashboard";
 import AdminLoopDetails from "./pages/AdminLoopDetails";
+import NewsletterEditor from "./pages/NewsletterEditor";
 import ProfilePage from "./pages/ProfilePage";
 import { Navbar } from "./components/Navbar";
 
@@ -37,6 +38,7 @@ function App() {
             {user.isPrivileged && (
               <>
                 <Route path="/admin/loops/:id" component={AdminLoopDetails} />
+                <Route path="/admin/loops/:loopId/newsletters/:newsletterId" component={NewsletterEditor} />
                 <Route path="/admin" component={AdminDashboard} />
               </>
             )}

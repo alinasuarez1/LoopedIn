@@ -1,5 +1,6 @@
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useParams } from "wouter";
+import { useLocation } from "wouter";
 import {
   Card,
   CardContent,
@@ -59,13 +60,15 @@ interface LoopDetails {
     id: number;
     content: string;
     sentAt: string;
-    urlId: string; // Added urlId
+    urlId: string;
+    status: 'draft' | 'sent'; // Added status field
   }>;
 }
 
 export default function AdminLoopDetails() {
   const { id } = useParams<{ id: string }>();
   const { toast } = useToast();
+  const [, setLocation] = useLocation();
 
   const { data: loop, isLoading, error, refetch } = useQuery<LoopDetails>({
     queryKey: [`/api/admin/loops/${id}`],
@@ -85,12 +88,12 @@ export default function AdminLoopDetails() {
 
       return response.json();
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
       toast({
         title: "Newsletter Generated",
-        description: "The newsletter has been generated and sent for review.",
+        description: "The newsletter has been generated and saved as a draft.",
       });
-      refetch();
+      setLocation(`/admin/loops/${id}/newsletters/${data.newsletter.id}`);
     },
     onError: (error) => {
       toast({
@@ -269,16 +272,31 @@ export default function AdminLoopDetails() {
                   <time className="text-sm text-muted-foreground">
                     {format(new Date(newsletter.sentAt), "PPp")}
                   </time>
+                  <span className="text-xs text-muted-foreground mt-1">
+                    Status: {newsletter.status}
+                  </span>
                 </div>
-                <a
-                  href={`/newsletters/${newsletter.urlId}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="flex items-center gap-2 text-primary hover:underline"
-                >
-                  View Newsletter
-                  <ExternalLink className="h-4 w-4" />
-                </a>
+                <div className="flex items-center gap-2">
+                  {newsletter.status === 'draft' ? (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setLocation(`/admin/loops/${id}/newsletters/${newsletter.id}`)}
+                    >
+                      Edit Draft
+                    </Button>
+                  ) : (
+                    <a
+                      href={`/newsletters/${newsletter.urlId}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex items-center gap-2 text-primary hover:underline"
+                    >
+                      View Newsletter
+                      <ExternalLink className="h-4 w-4" />
+                    </a>
+                  )}
+                </div>
               </div>
             ))}
             {loop.newsletters.length === 0 && (
