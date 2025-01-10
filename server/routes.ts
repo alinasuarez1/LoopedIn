@@ -6,6 +6,7 @@ import { loops, loopMembers, updates, newsletters, users, type User } from "@db/
 import { and, eq, desc, ilike } from "drizzle-orm";
 import { generateNewsletter, suggestNewsletterImprovements } from "./anthropic";
 import { sendWelcomeMessage, sendSMS } from "./twilio";
+import { nanoid } from 'nanoid';
 
 // Middleware to check if user has privileged access
 const requirePrivilegedAccess = async (req: Express.Request, res: Express.Response, next: Express.NextFunction) => {
@@ -776,6 +777,7 @@ export function registerRoutes(app: Express): Server {
         return {
           content: update.content,
           userName: `${user.firstName} ${user.lastName}`,
+          mediaUrls: update.mediaUrls || [],
         };
       });
 
@@ -786,6 +788,9 @@ export function registerRoutes(app: Express): Server {
         { customHeader, customClosing }
       );
 
+      // Generate a unique URL ID
+      const urlId = nanoid(10); // 10 characters is a good balance between security and usability
+
       // Save the draft newsletter
       const [newsletter] = await db
         .insert(newsletters)
@@ -793,6 +798,7 @@ export function registerRoutes(app: Express): Server {
           loopId,
           content: newsletterContent,
           status: 'draft',
+          urlId,
         })
         .returning();
 
@@ -803,7 +809,7 @@ export function registerRoutes(app: Express): Server {
         });
 
         if (adminUser) {
-          const previewUrl = `${process.env.APP_URL}/admin/loops/${loopId}/newsletters/${newsletter.id}`;
+          const previewUrl = `${process.env.APP_URL}/newsletters/${urlId}`;
           await sendSMS(
             adminUser.phoneNumber,
             `Your ${loop.name} newsletter draft is ready for review. Check it out here: ${previewUrl}`
@@ -814,10 +820,50 @@ export function registerRoutes(app: Express): Server {
         // Continue even if SMS fails
       }
 
-      res.json(newsletter);
+      res.json({ ...newsletter, url: `/newsletters/${urlId}` });
     } catch (error) {
       console.error("Error generating newsletter:", error);
       res.status(500).send("Failed to generate newsletter");
+    }
+  });
+
+  // Add a new route to serve newsletters by URL ID
+  app.get("/newsletters/:urlId", async (req, res) => {
+    try {
+      const [newsletter] = await db.query.newsletters.findMany({
+        where: eq(newsletters.urlId, req.params.urlId),
+        with: {
+          loop: true,
+        },
+        limit: 1,
+      });
+
+      if (!newsletter) {
+        return res.status(404).send("Newsletter not found");
+      }
+
+      // Render the newsletter content
+      res.send(`
+        <!DOCTYPE html>
+        <html>
+        <head>
+          <meta charset="UTF-8">
+          <meta name="viewport" content="width=device-width, initial-scale=1.0">
+          <title>${newsletter.loop?.name || 'Loop'} Newsletter</title>
+          <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+        </head>
+        <body class="bg-gray-50">
+          <div class="max-w-3xl mx-auto p-6">
+            <article class="prose lg:prose-xl mx-auto bg-white p-8 rounded-lg shadow-lg">
+              ${newsletter.content}
+            </article>
+          </div>
+        </body>
+        </html>
+      `);
+    } catch (error) {
+      console.error("Error serving newsletter:", error);
+      res.status(500).send("Failed to load newsletter");
     }
   });
 
