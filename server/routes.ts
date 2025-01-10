@@ -6,6 +6,7 @@ import { loops, loopMembers, updates, newsletters, users, type User } from "@db/
 import { and, eq } from "drizzle-orm";
 import { generateNewsletter, analyzeUpdatesForHighlights } from "./anthropic";
 import { sendWelcomeMessage } from "./twilio";
+import { uploadMediaFromUrl } from "./storage";
 
 export function registerRoutes(app: Express): Server {
   // Setup authentication routes
@@ -55,6 +56,18 @@ export function registerRoutes(app: Express): Server {
         return res.status(404).send("Specified loop not found");
       }
 
+      // If there's a media URL, upload it to Google Cloud Storage
+      let mediaUrl = null;
+      if (MediaUrl0) {
+        try {
+          mediaUrl = await uploadMediaFromUrl(MediaUrl0, user.id);
+          console.log(`Uploaded media to: ${mediaUrl}`);
+        } catch (error) {
+          console.error('Failed to upload media:', error);
+          // Continue without the media if upload fails
+        }
+      }
+
       // Save update to each relevant loop
       const savedUpdates = await Promise.all(
         targetLoops.map(membership =>
@@ -64,7 +77,7 @@ export function registerRoutes(app: Express): Server {
               loopId: membership.loop!.id,
               userId: user.id,
               content: Body,
-              mediaUrl: MediaUrl0 || null,
+              mediaUrl: mediaUrl,
             })
             .returning()
         )
