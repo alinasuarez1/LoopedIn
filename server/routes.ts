@@ -3,15 +3,120 @@ import { createServer, type Server } from "http";
 import { setupAuth } from "./auth";
 import { db } from "@db";
 import { loops, loopMembers, updates, newsletters, users, type User } from "@db/schema";
-import { and, eq } from "drizzle-orm";
+import { and, eq, desc, like } from "drizzle-orm";
 import { generateNewsletter } from "./anthropic";
 import { sendWelcomeMessage } from "./twilio";
 import { processAndSaveMedia } from "./storage";
-import { randomBytes } from "crypto";
+
+// Middleware to check if user is admin
+const requireAdmin = async (req: Express.Request, res: Express.Response, next: Express.NextFunction) => {
+  const user = req.user as User | undefined;
+  if (!user?.id) {
+    return res.status(401).send("Not authenticated");
+  }
+
+  if (!user.isAdmin) {
+    return res.status(403).send("Not authorized. Admin access required.");
+  }
+
+  next();
+};
 
 export function registerRoutes(app: Express): Server {
   // Setup authentication routes
   setupAuth(app);
+
+  // Admin Routes
+  app.get("/api/admin/loops", requireAdmin, async (req, res) => {
+    const { search, adminEmail, sort = "recent" } = req.query;
+
+    let query = db.query.loops.findMany({
+      with: {
+        creator: true,
+        members: true,
+        updates: true,
+        newsletters: true,
+      },
+    });
+
+    // Apply filters
+    if (search) {
+      query = db.query.loops.findMany({
+        where: like(loops.name, `%${search}%`),
+        with: {
+          creator: true,
+          members: true,
+          updates: true,
+          newsletters: true,
+        },
+      });
+    }
+
+    if (adminEmail) {
+      query = db.query.loops.findMany({
+        where: eq(users.email, adminEmail as string),
+        with: {
+          creator: true,
+          members: true,
+          updates: true,
+          newsletters: true,
+        },
+      });
+    }
+
+    // Apply sorting
+    if (sort === "recent") {
+      query = db.query.loops.findMany({
+        orderBy: desc(loops.createdAt),
+        with: {
+          creator: true,
+          members: true,
+          updates: true,
+          newsletters: true,
+        },
+      });
+    }
+
+    const allLoops = await query;
+
+    // Transform data for the frontend
+    const loopsWithStats = allLoops.map(loop => ({
+      ...loop,
+      memberCount: loop.members?.length || 0,
+      lastNewsletter: loop.newsletters?.[loop.newsletters.length - 1]?.sentAt || null,
+      updateCount: loop.updates?.length || 0,
+    }));
+
+    res.json(loopsWithStats);
+  });
+
+  app.get("/api/admin/stats", requireAdmin, async (req, res) => {
+    const { startDate, endDate } = req.query;
+
+    // Get all loops with their creation dates
+    const allLoops = await db.query.loops.findMany({
+      orderBy: desc(loops.createdAt),
+      with: {
+        members: true,
+      },
+    });
+
+    // Calculate statistics
+    const stats = {
+      totalLoops: allLoops.length,
+      totalMembers: allLoops.reduce((acc, loop) => acc + (loop.members?.length || 0), 0),
+      loopGrowth: allLoops.map(loop => ({
+        date: loop.createdAt,
+        count: 1,
+      })),
+      memberGrowth: allLoops.map(loop => ({
+        date: loop.createdAt,
+        count: loop.members?.length || 0,
+      })),
+    };
+
+    res.json(stats);
+  });
 
   // Twilio Webhook for incoming messages
   app.post("/api/webhooks/twilio", async (req, res) => {
