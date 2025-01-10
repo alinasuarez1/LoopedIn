@@ -6,7 +6,6 @@ import { loops, loopMembers, updates, newsletters, users, type User } from "@db/
 import { and, eq } from "drizzle-orm";
 import { generateNewsletter, analyzeUpdatesForHighlights } from "./anthropic";
 import { sendWelcomeMessage } from "./twilio";
-import { randomBytes } from "crypto";
 
 export function registerRoutes(app: Express): Server {
   // Setup authentication routes
