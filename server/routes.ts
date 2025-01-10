@@ -16,6 +16,7 @@ export function registerRoutes(app: Express): Server {
   app.post("/api/webhooks/twilio", async (req, res) => {
     try {
       const { From, Body, MediaUrl0 } = req.body;
+      console.log('Received Twilio webhook with media:', MediaUrl0);
 
       // Clean up the phone number (remove the '+' prefix if present)
       const phoneNumber = From.startsWith('+') ? From.substring(1) : From;
@@ -60,8 +61,9 @@ export function registerRoutes(app: Express): Server {
       let mediaUrl = null;
       if (MediaUrl0) {
         try {
+          console.log('Attempting to upload media from Twilio URL:', MediaUrl0);
           mediaUrl = await uploadMediaFromUrl(MediaUrl0, user.id);
-          console.log(`Uploaded media to: ${mediaUrl}`);
+          console.log('Successfully uploaded media to Google Cloud Storage:', mediaUrl);
         } catch (error) {
           console.error('Failed to upload media:', error);
           // Continue without the media if upload fails
@@ -70,17 +72,20 @@ export function registerRoutes(app: Express): Server {
 
       // Save update to each relevant loop
       const savedUpdates = await Promise.all(
-        targetLoops.map(membership =>
-          db
+        targetLoops.map(async membership => {
+          const update = await db
             .insert(updates)
             .values({
               loopId: membership.loop!.id,
               userId: user.id,
               content: Body,
-              mediaUrl: mediaUrl,
+              mediaUrl: mediaUrl, // Use the Google Cloud Storage URL
             })
-            .returning()
-        )
+            .returning();
+
+          console.log('Saved update with mediaUrl:', update[0].mediaUrl);
+          return update[0];
+        })
       );
 
       console.log(`Saved ${savedUpdates.length} updates for user ${user.id}`);
