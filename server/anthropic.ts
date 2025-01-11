@@ -34,12 +34,14 @@ export async function generateNewsletter(
         </figure>
       `).join('\n') || '';
 
-      return `### Update from ${u.userName}
+      return `<h3 class="text-xl font-semibold mt-6 mb-4">Update from ${u.userName}</h3>
 
-${u.content}
+<div class="update-content">
+  ${u.content}
+</div>
 
 ${mediaHtml}`;
-    }).join('\n\n---\n\n');
+    }).join('\n\n<hr class="my-8">\n\n');
 
     const vibeDescription = vibe.join(', ');
     const customHeader = options?.customHeader || '';
@@ -66,7 +68,9 @@ Important requirements:
 ${customClosing ? `\n${customClosing}` : ''}
 
 Important guidelines:
-- Use semantic HTML (<h1>, <h2>, etc.) but make the headers fun and original
+- Use proper HTML tags (<h1>, <h2>, etc.) with appropriate styling classes
+- For main title use: <h1 class="text-4xl font-bold text-center mb-8">
+- For section headers use: <h2 class="text-2xl font-bold mt-8 mb-4">
 - Be creative with emojis - use them to add personality, not just decoration
 - Keep your ${vibeDescription} tone throughout
 - Preserve all HTML content exactly as provided, especially images
