@@ -29,7 +29,7 @@ export function registerRoutes(app: Express): Server {
   setupAuth(app);
 
   // Admin Routes - now protected by privileged access check
-  app.get("/api/admin/loops", requirePrivilegedAccess, async (req, res) => {
+  app.get("/api/admin/loops", requirePrivilegedAccess, async (req: Request, res: Response) => {
     const { search, sort = "recent" } = req.query;
 
     try {
@@ -86,7 +86,7 @@ export function registerRoutes(app: Express): Server {
     }
   });
 
-  app.get("/api/admin/loops/:id", requirePrivilegedAccess, async (req, res) => {
+  app.get("/api/admin/loops/:id", requirePrivilegedAccess, async (req: Request, res: Response) => {
     const [loop] = await db.query.loops.findMany({
       where: eq(loops.id, parseInt(req.params.id)),
       with: {
@@ -116,7 +116,7 @@ export function registerRoutes(app: Express): Server {
     res.json(loop);
   });
 
-  app.get("/api/admin/stats", requirePrivilegedAccess, async (req, res) => {
+  app.get("/api/admin/stats", requirePrivilegedAccess, async (req: Request, res: Response) => {
     const { startDate, endDate } = req.query;
 
     // Get all loops with their creation dates
@@ -145,7 +145,7 @@ export function registerRoutes(app: Express): Server {
   });
 
   // Twilio Webhook for incoming messages
-  app.post("/api/webhooks/twilio", async (req, res) => {
+  app.post("/api/webhooks/twilio", async (req: Request, res: Response) => {
     try {
       const { From, Body } = req.body;
 
@@ -292,7 +292,7 @@ export function registerRoutes(app: Express): Server {
   });
 
   // Loops
-  app.get("/api/loops", async (req, res) => {
+  app.get("/api/loops", async (req: Request, res: Response) => {
     const user = req.user as User | undefined;
     if (!user?.id) {
       return res.status(401).send("Not authenticated");
@@ -319,7 +319,7 @@ export function registerRoutes(app: Express): Server {
     res.json(userLoops);
   });
 
-  app.get("/api/loops/:id", async (req, res) => {
+  app.get("/api/loops/:id", async (req: Request, res: Response) => {
     const user = req.user as User | undefined;
     if (!user?.id) {
       return res.status(401).send("Not authenticated");
@@ -354,7 +354,7 @@ export function registerRoutes(app: Express): Server {
     res.json(loop);
   });
 
-  app.post("/api/loops", async (req, res) => {
+  app.post("/api/loops", async (req: Request, res: Response) => {
     const user = req.user as User | undefined;
     if (!user?.id) {
       return res.status(401).send("Not authenticated");
@@ -418,7 +418,7 @@ export function registerRoutes(app: Express): Server {
     }
   });
 
-  app.put("/api/loops/:id", async (req, res) => {
+  app.put("/api/loops/:id", async (req: Request, res: Response) => {
     const user = req.user as User | undefined;
     if (!user?.id) {
       return res.status(401).send("Not authenticated");
@@ -450,7 +450,7 @@ export function registerRoutes(app: Express): Server {
     res.json(loop);
   });
 
-  app.delete("/api/loops/:id", async (req, res) => {
+  app.delete("/api/loops/:id", async (req: Request, res: Response) => {
     const user = req.user as User | undefined;
     if (!user?.id) {
       return res.status(401).send("Not authenticated");
@@ -511,7 +511,7 @@ export function registerRoutes(app: Express): Server {
   });
 
   // Loop Members
-  app.post("/api/loops/:id/members", async (req, res) => {
+  app.post("/api/loops/:id/members", async (req: Request, res: Response) => {
     const user = req.user as User | undefined;
     if (!user?.id) {
       return res.status(401).send("Not authenticated");
@@ -608,7 +608,7 @@ export function registerRoutes(app: Express): Server {
     }
   });
 
-  app.delete("/api/loops/:id/members/:memberId", async (req, res) => {
+  app.delete("/api/loops/:id/members/:memberId", async (req: Request, res: Response) => {
     const user = req.user as User | undefined;
     if (!user?.id) {
       return res.status(401).send("Not authenticated");
@@ -649,7 +649,7 @@ export function registerRoutes(app: Express): Server {
   });
 
   // Updates
-  app.post("/api/loops/:id/updates", async (req, res) => {
+  app.post("/api/loops/:id/updates", async (req: Request, res: Response) => {
     const user = req.user as User | undefined;
     if (!user?.id) {
       return res.status(401).send("Not authenticated");
@@ -671,7 +671,7 @@ export function registerRoutes(app: Express): Server {
   });
 
   // Updates
-  app.delete("/api/loops/:loopId/updates/:updateId", async (req, res) => {
+  app.delete("/api/loops/:loopId/updates/:updateId", async (req: Request, res: Response) => {
     const user = req.user as User | undefined;
     if (!user?.id) {
       return res.status(401).send("Not authenticated");
@@ -718,7 +718,7 @@ export function registerRoutes(app: Express): Server {
 
 
   // Newsletters
-  app.post("/api/loops/:id/newsletters", async (req, res) => {
+  app.post("/api/loops/:id/newsletters", async (req: Request, res: Response) => {
     const user = req.user as User | undefined;
     if (!user?.id) {
       return res.status(401).send("Not authenticated");
@@ -777,7 +777,7 @@ export function registerRoutes(app: Express): Server {
   });
 
   // Newsletter Management Routes
-  app.post("/api/loops/:id/newsletters/generate", requirePrivilegedAccess, async (req, res) => {
+  app.post("/api/loops/:id/newsletters/generate", requirePrivilegedAccess, async (req: Request, res: Response) => {
     const user = req.user as User | undefined;
     if (!user?.id) {
       return res.status(401).send("Not authenticated");
@@ -886,7 +886,7 @@ export function registerRoutes(app: Express): Server {
   });
 
   // Add a new route to serve newsletters by URL ID
-  app.get("/newsletters/:urlId", async (req, res) => {
+  app.get("/newsletters/:urlId", async (req: Request, res: Response) => {
     try {
       const [newsletter] = await db.query.newsletters.findMany({
         where: eq(newsletters.urlId, req.params.urlId),
@@ -993,7 +993,7 @@ export function registerRoutes(app: Express): Server {
   });
 
   // Get newsletter preview
-  app.get("/api/loops/:id/newsletters/:newsletterId/preview", requirePrivilegedAccess, async (req, res) => {
+  app.get("/api/loops/:id/newsletters/:newsletterId/preview", requirePrivilegedAccess, async (req: Request, res: Response) => {
     try {
       const [newsletter] = await db.query.newsletters.findMany({
         where: and(
@@ -1015,7 +1015,7 @@ export function registerRoutes(app: Express): Server {
   });
 
   // Update newsletter content
-  app.put("/api/loops/:id/newsletters/:newsletterId", requirePrivilegedAccess, async (req, res) => {
+  app.put("/api/loops/:id/newsletters/:newsletterId", requirePrivilegedAccess, async (req: Request, res: Response) => {
     try {
       const { content, customHeader, customClosing } = req.body;
 
@@ -1033,11 +1033,12 @@ export function registerRoutes(app: Express): Server {
         )
         .returning();
 
-      if (!newsletter) {        return res.status(404).send("Newsletter not found");
+      if (!newsletter) {
+        return res.status(404).send("Newsletter not found");
       }
 
-      // If requested, get improvement suggestions
-      if (req.query.suggest=== 'true') {        const loop = await db.query.loops.findFirst({
+      // If requested, get improvement suggestions      if (req.query.suggest === 'true') {
+        const loop = await db.query.loops.findFirst({
           where: eq(loops.id, parseInt(req.params.id)),
         });
 
@@ -1055,76 +1056,97 @@ export function registerRoutes(app: Express): Server {
   });
 
   // Approve and send newsletter
-  app.post("/api/loops/:id/newsletters/:newsletterId/send", requirePrivilegedAccess, async (req, res) => {
-    try {
-            const loopId = parseInt(req.params.id);
-      const newsletterId = parseInt(req.params.newsletterId);
+  app.post("/api/loops/:id/newsletters/:newsletterId/send", requirePrivilegedAccess, async (req: Request, res: Response) => {
+    const loopId = parseInt(req.params.id);
+    const newsletterId = parseInt(req.params.newsletterId);
 
-      // Get the newsletter and verify it exists
-      const [newsletter] = await db.query.newsletters.findMany({
+    try {
+      // Get the newsletter and its associated loop with members
+      const newsletter = await db.query.newsletters.findFirst({
         where: and(
           eq(newsletters.id, newsletterId),
           eq(newsletters.loopId, loopId)
         ),
-        limit: 1
+        with: {
+          loop: {
+            with: {
+              members: {
+                with: {
+                  user: true
+                }
+              }
+            }
+          }
+        }
       });
 
       if (!newsletter) {
         return res.status(404).send("Newsletter not found");
       }
 
-      // Get all loop members
-      const members = await db.query.query.loopMembers.findMany({
-        where: eq(loopMembers.loopId, loopId),
-        with: {
-          user: true
-        }
-      });
-
-      const domain = req.get('host') || 'loopedin.replit.app';
-      const protocol = req.protocol || 'https';
-      const viewUrl = `${protocol}://${domain}/newsletters/${newsletter.urlId}`;
-
-      // Send SMS notifications to all loop members
-      const sentTo: string[] = [];
-      for (const member of members) {
-        if (!member.user?.phoneNumber) continue;
-
-        try {
-          await sendSMS(
-            member.user.phoneNumber,
-            `New update from your loop! View it here: ${viewUrl}`
-          );
-          sentTo.push(member.user.phoneNumber);
-        } catch (error) {
-          console.error(`Failed to send SMS to ${member.user.phoneNumber}:`, error);
-          // Continue with other members even if one fails
-        }
+      if (!newsletter.loop) {
+        return res.status(404).send("Associated loop not found");
       }
 
-      // Update newsletter status
+      if (!newsletter.loop.members?.length) {
+        return res.status(400).send("No members to send newsletter to");
+      }
+
+      // Mark newsletter as sent
       const [updatedNewsletter] = await db
         .update(newsletters)
         .set({
           status: 'sent',
-          sentAt: new Date()
+          sentAt: new Date(),
         })
         .where(eq(newsletters.id, newsletterId))
         .returning();
 
-      // Return success response with stats
-      res.json({
+      if (!updatedNewsletter) {
+        return res.status(500).send("Failed to update newsletter status");
+      }
+
+      // Prepare newsletter URL
+      const domain = req.get('host') || 'loopedin.replit.app';
+      const protocol = req.protocol || 'https';
+      const newsletterUrl = `${protocol}://${domain}/newsletters/${newsletter.urlId}`;
+
+      // Send SMS notifications to all members
+      const successfulSends: string[] = [];
+      const failedSends: string[] = [];
+
+      await Promise.all(
+        newsletter.loop.members.map(async (member) => {
+          if (!member.user?.phoneNumber) return;
+
+          try {
+            await sendSMS(
+              member.user.phoneNumber,
+              `New update from ${newsletter.loop!.name}! Check it out here: ${newsletterUrl}`
+            );
+            successfulSends.push(member.user.phoneNumber);
+          } catch (error) {
+            console.error(`Failed to send SMS to ${member.user.phoneNumber}:`, error);
+            failedSends.push(member.user.phoneNumber);
+          }
+        })
+      );
+
+      return res.json({
+        message: "Newsletter sent successfully",
         newsletter: updatedNewsletter,
-        sentTo,
-        failedCount: members.length - sentTo.length
+        stats: {
+          totalMembers: newsletter.loop.members.length,
+          successfulSends: successfulSends.length,
+          failedSends: failedSends.length
+        }
       });
     } catch (error) {
       console.error("Error sending newsletter:", error);
-      res.status(500).send("Failed to send newsletter");
+      return res.status(500).send("Failed to send newsletter");
     }
   });
 
-  // Create HTTP server and return it
-  const server = createServer(app);
-  return server;
+  const httpServer = createServer(app);
+  return httpServer;
 }
