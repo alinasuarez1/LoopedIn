@@ -34,20 +34,19 @@ export async function generateNewsletter(
         </figure>
       `).join('\n') || '';
 
-      return `<h3 class="text-xl font-semibold mt-6 mb-4">Update from ${u.userName}</h3>
-
-<div class="update-content">
-  ${u.content}
-</div>
-
-${mediaHtml}`;
-    }).join('\n\n<hr class="my-8">\n\n');
+      return `<div class="update-details" data-member="${u.userName}">
+  <div class="update-content">
+    ${u.content}
+  </div>
+  ${mediaHtml}
+</div>`;
+    }).join('\n\n');
 
     const vibeDescription = vibe.join(', ');
     const customHeader = options?.customHeader || '';
     const customClosing = options?.customClosing || '';
 
-    const prompt = `Create an engaging and fun newsletter for the group "${loopName}". The newsletter should have a ${vibeDescription} tone.
+    const prompt = `Create an engaging narrative-style newsletter for the group "${loopName}" with a ${vibeDescription} tone.
 
 ${customHeader ? `Use this custom header: ${customHeader}\n` : ''}
 
@@ -56,29 +55,32 @@ Here are all the updates from members:
 ${updatesList}
 
 Important requirements:
-1. Create a catchy, fun title that captures the spirit of this update
-2. READ through all updates and organize them creatively:
-   - Create unique, engaging section headers based on common themes, interesting connections, or fun categories you spot
-   - Use emojis creatively in headers to add personality
-   - Make unexpected but delightful connections between different updates
-   - INCLUDE ALL updates in their entirety - no skipping or heavy summarizing!
-3. Add playful transitions between sections
-4. End with an upbeat closing that builds excitement for the next update
+1. Create a catchy, fun title that captures the overall theme or spirit
+2. Weave the updates into a cohesive story:
+   - Create thematic sections that naturally connect different updates
+   - Use creative transitions to flow between topics
+   - Include relevant quotes from members' updates to add personality
+   - Make unexpected but meaningful connections between updates
+   - INCLUDE ALL updates but present them in a narrative way
+3. Add personality through:
+   - Fun, thematic section headers
+   - Brief narrative commentary between sections
+   - Creative use of emojis that fit the story
+4. End with an engaging closing that ties everything together
 
 ${customClosing ? `\n${customClosing}` : ''}
 
 Important guidelines:
-- Use proper HTML tags (<h1>, <h2>, etc.) with appropriate styling classes
-- For main title use: <h1 class="text-4xl font-bold text-center mb-8">
-- For section headers use: <h2 class="text-2xl font-bold mt-8 mb-4">
-- Be creative with emojis - use them to add personality, not just decoration
+- Use proper HTML tags and styling:
+  - Main title: <h1 class="text-4xl font-bold text-center mb-8">
+  - Section headers: <h2 class="text-2xl font-bold mt-8 mb-4">
+  - Quotes: <blockquote class="border-l-4 border-primary pl-4 my-4 italic">
+- Make it feel like a story, not a list of updates
 - Keep your ${vibeDescription} tone throughout
-- Preserve all HTML content exactly as provided, especially images
-- Make the newsletter feel like a fun conversation, not a formal report
-- Include every single update, but organize them in an engaging way
-- Break up text into digestible chunks
-- Feel free to add brief reactions or playful comments between sections
-- Make connections between updates when you spot them`;
+- Preserve all original content while presenting it creatively
+- Include every update but blend them naturally into the narrative
+- Use member quotes to highlight key points
+- Keep the original context and meaning of updates intact`;
 
     const response = await anthropic.messages.create({
       model: 'claude-3-5-sonnet-20241022',
@@ -88,7 +90,6 @@ Important guidelines:
 
     const newsletterContent = response.content[0].value || '';
 
-    // Add metadata and formatting
     return `
 <div class="newsletter-content max-w-4xl mx-auto">
   <header class="text-center mb-8">
@@ -116,9 +117,9 @@ Important guidelines:
 export async function analyzeUpdatesForHighlights(updates: string[]): Promise<string[]> {
   try {
     const prompt = `Given these updates from a group, identify 3-5 key themes or highlights that would be interesting to feature in a newsletter:
-
+      
 ${updates.join('\n')}
-
+      
 Please output only the highlights, one per line, focusing on:
 - Common themes across updates
 - Notable achievements or milestones
@@ -144,16 +145,16 @@ export async function suggestNewsletterImprovements(
 ): Promise<string> {
   try {
     const prompt = `Review this newsletter draft and suggest improvements to make it more engaging and aligned with the ${vibe.join(', ')} vibe:
-
+      
 ${newsletterContent}
-
+      
 Focus on:
 1. Tone and voice consistency
 2. Structure and flow
 3. Engagement factors
 4. Personal touches
 5. Call-to-action effectiveness
-
+      
 Provide specific, actionable suggestions.`;
 
     const response = await anthropic.messages.create({
