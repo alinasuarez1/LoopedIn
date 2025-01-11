@@ -34,7 +34,7 @@ export async function generateNewsletter(
       `).join('\n') || '';
 
       return `<div class="update-details" data-member="${u.userName}">
-  <div class="update-content">
+  <div class="update-content mb-4">
     ${u.content}
   </div>
   ${mediaHtml}
@@ -66,6 +66,10 @@ Important requirements:
    - Brief narrative commentary between sections
    - Creative use of emojis that fit the story
 4. End with an engaging closing that ties everything together
+5. IMPORTANT: For any update that includes images:
+   - Keep all image tags exactly as provided
+   - Introduce images naturally in the narrative
+   - Add context around the images to make them part of the story
 
 ${customClosing ? `\n${customClosing}` : ''}
 
@@ -79,6 +83,7 @@ Important guidelines:
 - Preserve all original content while presenting it creatively
 - Include every update but blend them naturally into the narrative
 - Use member quotes to highlight key points
+- Keep ALL original content including images exactly as provided
 - Keep the original context and meaning of updates intact`;
 
     const completion = await openai.chat.completions.create({
@@ -121,7 +126,7 @@ Important guidelines:
 export async function analyzeUpdatesForHighlights(updates: string[]): Promise<string[]> {
   try {
     const prompt = `Given these updates from a group, identify 3-5 key themes or highlights that would be interesting to feature in a newsletter:
-    
+
 ${updates.join('\n')}
 
 Please output only the highlights, one per line, focusing on:
