@@ -8,6 +8,8 @@ export type ReminderSchedule = {
   time: string; // 24-hour format "HH:mm"
 }[];
 
+export type NewsletterStatus = 'draft' | 'finalized' | 'sent';
+
 export const users = pgTable("users", {
   id: serial("id").primaryKey(),
   email: text("email").unique(),
@@ -33,15 +35,15 @@ export const loops = pgTable("loops", {
 
 export const loopMembers = pgTable("loop_members", {
   id: serial("id").primaryKey(),
-  loopId: integer("loop_id").references(() => loops.id),
-  userId: integer("user_id").references(() => users.id),
+  loopId: integer("loop_id").references(() => loops.id, { onDelete: 'cascade' }),
+  userId: integer("user_id").references(() => users.id, { onDelete: 'cascade' }),
   context: text("context"),
   createdAt: timestamp("created_at").defaultNow(),
 });
 
 export const updates = pgTable("updates", {
   id: serial("id").primaryKey(),
-  loopId: integer("loop_id").references(() => loops.id),
+  loopId: integer("loop_id").references(() => loops.id, { onDelete: 'cascade' }),
   userId: integer("user_id").references(() => users.id),
   content: text("content").notNull(),
   mediaUrls: jsonb("media_urls").$type<string[]>().default([]),
@@ -50,9 +52,9 @@ export const updates = pgTable("updates", {
 
 export const newsletters = pgTable("newsletters", {
   id: serial("id").primaryKey(),
-  loopId: integer("loop_id").notNull().references(() => loops.id),
+  loopId: integer("loop_id").references(() => loops.id, { onDelete: 'cascade' }).notNull(),
   content: text("content").notNull(),
-  status: text("status").notNull().default('draft'),
+  status: text("status", { enum: ['draft', 'finalized', 'sent'] }).$type<NewsletterStatus>().notNull().default('draft'),
   urlId: text("url_id").notNull().unique(),
   sentAt: timestamp("sent_at"),
   createdAt: timestamp("created_at").defaultNow(),

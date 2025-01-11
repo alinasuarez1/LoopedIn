@@ -61,7 +61,7 @@ interface LoopDetails {
     content: string;
     sentAt: string;
     urlId: string;
-    status: 'draft' | 'sent'; // Added status field
+    status: 'draft' | 'finalized' | 'sent';
   }>;
 }
 
@@ -139,23 +139,30 @@ export default function AdminLoopDetails() {
     generateNewsletterMutation.mutate();
   };
 
+  // Filter newsletters based on status
+  const visibleNewsletters = loop.newsletters.filter(newsletter => 
+    window.location.pathname.startsWith('/admin/') ? true : newsletter.status !== 'draft'
+  );
+
   return (
     <div className="container mx-auto p-4 space-y-6">
       <div className="flex justify-between items-center">
         <h1 className="text-3xl font-bold">{loop.name}</h1>
-        <Button
-          onClick={handleGenerateNewsletter}
-          disabled={generateNewsletterMutation.isPending}
-        >
-          {generateNewsletterMutation.isPending ? (
-            <>
-              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              Generating...
-            </>
-          ) : (
-            'Generate Newsletter'
-          )}
-        </Button>
+        {window.location.pathname.startsWith('/admin/') && (
+          <Button
+            onClick={handleGenerateNewsletter}
+            disabled={generateNewsletterMutation.isPending}
+          >
+            {generateNewsletterMutation.isPending ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Generating...
+              </>
+            ) : (
+              'Generate Newsletter'
+            )}
+          </Button>
+        )}
       </div>
 
       {/* Loop Info */}
@@ -264,14 +271,14 @@ export default function AdminLoopDetails() {
       {/* Newsletters section */}
       <Card>
         <CardHeader>
-          <CardTitle>Past Newsletters</CardTitle>
+          <CardTitle>Newsletters</CardTitle>
           <CardDescription>
-            {loop.newsletters.length} total newsletters
+            {visibleNewsletters.length} {window.location.pathname.startsWith('/admin/') ? 'total' : 'published'} newsletters
           </CardDescription>
         </CardHeader>
         <CardContent>
           <div className="space-y-2">
-            {loop.newsletters.map((newsletter) => (
+            {visibleNewsletters.map((newsletter) => (
               <div
                 key={newsletter.id}
                 className="flex items-center justify-between p-3 bg-muted/50 rounded-lg hover:bg-muted transition-colors"
@@ -280,9 +287,11 @@ export default function AdminLoopDetails() {
                   <time className="text-sm text-muted-foreground">
                     {format(new Date(newsletter.sentAt), "PPp")}
                   </time>
-                  <span className="text-xs text-muted-foreground mt-1">
-                    Status: {newsletter.status}
-                  </span>
+                  {window.location.pathname.startsWith('/admin/') && (
+                    <span className="text-xs text-muted-foreground mt-1">
+                      Status: {newsletter.status}
+                    </span>
+                  )}
                 </div>
                 <div className="flex items-center gap-2">
                   {newsletter.status === 'draft' ? (
@@ -307,9 +316,9 @@ export default function AdminLoopDetails() {
                 </div>
               </div>
             ))}
-            {loop.newsletters.length === 0 && (
+            {visibleNewsletters.length === 0 && (
               <p className="text-center text-muted-foreground py-4">
-                No newsletters have been generated yet
+                No newsletters available
               </p>
             )}
           </div>
