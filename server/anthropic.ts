@@ -25,11 +25,14 @@ export async function generateNewsletter(
 ): Promise<string> {
   try {
     const updatesList = updates.map(u => {
-      const mediaHtml = u.mediaUrls?.map((url, index) => 
-        `<div class="my-4">
-           <img src="${url}" alt="Update media ${index + 1}" class="rounded-lg shadow-md max-w-full h-auto" />
-         </div>`
-      ).join('\n') || '';
+      const mediaHtml = u.mediaUrls?.map((url, index) => `
+        <figure class="my-6">
+          <img src="${url}" 
+               alt="Update from ${u.userName} - Media ${index + 1}" 
+               class="rounded-lg shadow-md max-w-full h-auto mx-auto"
+               loading="lazy" />
+        </figure>
+      `).join('\n') || '';
 
       return `### Update from ${u.userName}
 
@@ -42,49 +45,48 @@ ${mediaHtml}`;
     const customHeader = options?.customHeader || '';
     const customClosing = options?.customClosing || '';
 
-    const prompt = `Generate a well-structured newsletter for the group "${loopName}". 
+    const prompt = `Generate a comprehensive newsletter for the group "${loopName}" that includes ALL member updates. 
 The newsletter should have a ${vibeDescription} tone.
 
 ${customHeader ? `Use this custom header: ${customHeader}\n` : ''}
 
-Here are the updates from members:
+Here are all the updates from members:
 
 ${updatesList}
 
-Please format this as a well-structured newsletter that includes:
+Format this as a newsletter that MUST include:
 
-# [Engaging Title for ${loopName}]
-
-## 🌟 Highlights
-[Brief overview highlighting key themes or patterns from the updates]
-
-## 📝 Member Updates
-[Individual member updates, organized in an engaging way]
-
-## 🎯 Looking Forward
-[Brief forward-looking section that builds anticipation for the next update]
+1. An engaging title
+2. A brief highlights section identifying key themes (2-3 paragraphs)
+3. ALL member updates in their entirety - this is crucial:
+   - Present each update in full
+   - Do not summarize or omit any updates
+   - Include all images exactly as provided
+   - Maintain the original context and meaning
+4. A brief forward-looking section
 
 ${customClosing ? `\n${customClosing}` : ''}
 
-Make sure to:
-- Use HTML tags for proper formatting (<h1>, <h2>, etc.)
-- Keep section headers clear and consistent
-- Maintain a friendly, ${vibeDescription} tone throughout
-- Preserve all image tags exactly as provided
-- Add emoji icons to section headers for visual appeal
-- Break up text into digestible paragraphs`;
+Important guidelines:
+- Use semantic HTML tags (<h1>, <h2>, etc.)
+- Keep the structure clear and consistent
+- Maintain a ${vibeDescription} tone throughout
+- Preserve all HTML content exactly as provided, especially image tags
+- Add emoji icons to section headers
+- Break up text into digestible paragraphs
+- Do not skip or heavily summarize any updates - include everything`;
 
     const response = await anthropic.messages.create({
       model: 'claude-3-5-sonnet-20241022',
-      max_tokens: 2000,
+      max_tokens: 4000,
       messages: [{ role: 'user', content: prompt }],
     });
 
-    const newsletterContent = response.content[0].text;
+    const newsletterContent = response.content[0].value || '';
 
     // Add metadata and formatting
     return `
-<div class="newsletter-content">
+<div class="newsletter-content max-w-4xl mx-auto">
   <header class="text-center mb-8">
     <h1 class="text-4xl font-bold mb-2">${loopName}</h1>
     <div class="text-sm text-gray-500">
@@ -92,7 +94,9 @@ Make sure to:
     </div>
   </header>
 
-  ${newsletterContent}
+  <article class="prose prose-lg mx-auto">
+    ${newsletterContent}
+  </article>
 
   <footer class="mt-8 pt-4 border-t border-gray-200 text-center text-sm text-gray-500">
     <p>This newsletter was generated with ❤️ by Loop</p>
@@ -123,7 +127,7 @@ Please output only the highlights, one per line, focusing on:
       messages: [{ role: 'user', content: prompt }],
     });
 
-    return response.content[0].text.split('\n').filter(Boolean);
+    return (response.content[0].value || '').split('\n').filter(Boolean);
   } catch (error) {
     console.error('Failed to analyze updates:', error);
     throw new Error('Failed to analyze updates. Please try again later.');
@@ -154,7 +158,7 @@ Provide specific, actionable suggestions.`;
       messages: [{ role: 'user', content: prompt }],
     });
 
-    return response.content[0].text;
+    return response.content[0].value || '';
   } catch (error) {
     console.error('Failed to suggest improvements:', error);
     throw new Error('Failed to analyze newsletter. Please try again later.');
