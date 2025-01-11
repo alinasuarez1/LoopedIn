@@ -112,7 +112,7 @@ Make sure to:
 export async function analyzeUpdatesForHighlights(updates: string[]): Promise<string[]> {
   try {
     const prompt = `Given these updates from a group, identify 3-5 key themes or highlights that would be interesting to feature in a newsletter:
-
+    
 ${updates.join('\n')}
 
 Please output only the highlights, one per line, focusing on:

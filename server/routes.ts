@@ -805,7 +805,7 @@ export function registerRoutes(app: Express): Server {
       );
 
       // Generate a unique URL ID
-      const urlId = nanoid(10); // 10 characters is a good balance between security and usability
+      const urlId = nanoid(10);
 
       // Save the draft newsletter
       const [newsletter] = await db
@@ -817,6 +817,10 @@ export function registerRoutes(app: Express): Server {
           urlId,
         })
         .returning();
+
+      if (!newsletter) {
+        throw new Error("Failed to create newsletter");
+      }
 
       // Send notification to admin
       try {
@@ -838,10 +842,23 @@ export function registerRoutes(app: Express): Server {
         // Continue even if SMS fails
       }
 
-      res.json({ ...newsletter, url: `/newsletters/${urlId}` });
+      // Return consistent response format
+      res.json({
+        newsletter: {
+          id: newsletter.id,
+          loopId: newsletter.loopId,
+          content: newsletter.content,
+          status: newsletter.status,
+          urlId: newsletter.urlId,
+          sentAt: newsletter.sentAt,
+          createdAt: newsletter.createdAt,
+          updatedAt: newsletter.updatedAt
+        },
+        url: `/newsletters/${urlId}`
+      });
     } catch (error) {
       console.error("Error generating newsletter:", error);
-      res.status(500).send("Failed to generate newsletter");
+      res.status(500).send(error instanceof Error ? error.message : "Failed to generate newsletter");
     }
   });
 
@@ -1023,7 +1040,7 @@ export function registerRoutes(app: Express): Server {
       }
 
       // Get all loop members
-      const members = await db.query.loopMembers.findMany({
+      const members = await db.query.query.loopMembers.findMany({
         where: eq(loopMembers.loopId, loopId),
         with: {
           user: true

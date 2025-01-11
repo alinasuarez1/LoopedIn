@@ -86,14 +86,22 @@ export default function AdminLoopDetails() {
         throw new Error(await response.text());
       }
 
-      return response.json();
+      const data = await response.json();
+
+      if (!data.newsletter || !data.newsletter.id) {
+        throw new Error("Invalid response format from server");
+      }
+
+      return data;
     },
     onSuccess: (data) => {
       toast({
         title: "Newsletter Generated",
         description: "The newsletter has been generated and saved as a draft.",
       });
-      setLocation(`/admin/loops/${id}/newsletters/${data.newsletter.id}`);
+      if (data.newsletter?.id) {
+        setLocation(`/admin/loops/${id}/newsletters/${data.newsletter.id}`);
+      }
     },
     onError: (error) => {
       toast({
