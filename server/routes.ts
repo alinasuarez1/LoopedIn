@@ -845,26 +845,6 @@ export function registerRoutes(app: Express): Server {
         throw new Error("Failed to create newsletter");
       }
 
-      // Send notification to admin
-      try {
-        const adminUser = await db.query.users.findFirst({
-          where: eq(users.id, loop.creatorId!),
-        });
-
-        if (adminUser) {
-          const domain = req.get('host') || 'loopedin.replit.app';
-          const protocol = req.protocol || 'https';
-          const previewUrl = `${protocol}://${domain}/newsletters/${urlId}`;
-          await sendSMS(
-            adminUser.phoneNumber,
-            `Your ${loop.name} newsletter draft is ready for review. Check it out here: ${previewUrl}`
-          );
-        }
-      } catch (smsError) {
-        console.error('Failed to send admin notification:', smsError);
-        // Continue even if SMS fails
-      }
-
       // Return consistent response format
       res.json({
         newsletter: {
@@ -1014,12 +994,11 @@ export function registerRoutes(app: Express): Server {
     }
   });
 
-  // Update newsletter content
   app.put("/api/loops/:id/newsletters/:newsletterId", requirePrivilegedAccess, async (req, res) => {
     try {
-      const { content, customHeader, customClosing } = req.body;
+      const { content } = req.body;
 
-      const [newsletter] = await db
+      const [updatedNewsletter] = await db
         .update(newsletters)
         .set({
           content,
@@ -1033,91 +1012,49 @@ export function registerRoutes(app: Express): Server {
         )
         .returning();
 
-      if (!newsletter) {        return res.status(404).send("Newsletter not found");
+      if (!updatedNewsletter) {
+        return res.status(404).send("Newsletter not found");
       }
 
-      // If requested, get improvement suggestions
-      if (req.query.suggest=== 'true') {        const loop = await db.query.loops.findFirst({
-          where: eq(loops.id, parseInt(req.params.id)),
-        });
-
-        if (loop) {
-          const suggestions = await suggestNewsletterImprovements(content, loop.vibe);
-          return res.json({ newsletter, suggestions });
-        }
-      }
-
-      res.json({ newsletter });
+      res.json(updatedNewsletter);
     } catch (error) {
       console.error("Error updating newsletter:", error);
       res.status(500).send("Failed to update newsletter");
     }
   });
 
-  // Approve and send newsletter
   app.post("/api/loops/:id/newsletters/:newsletterId/send", requirePrivilegedAccess, async (req, res) => {
     try {
-            const loopId = parseInt(req.params.id);
+      const loopId = parseInt(req.params.id);
       const newsletterId = parseInt(req.params.newsletterId);
 
       // Get the newsletter and verify it exists
-      const [newsletter] = await db.query.newsletters.findMany({
-        where: and(
-          eq(newsletters.id, newsletterId),
-          eq(newsletters.loopId, loopId)
-        ),
-        limit: 1
-      });
+      const [newsletter] = await db
+        .select()
+        .from(newsletters)
+        .where(
+          and(
+            eq(newsletters.id, newsletterId),
+            eq(newsletters.loopId, loopId)
+          )
+        )
+        .limit(1);
 
       if (!newsletter) {
         return res.status(404).send("Newsletter not found");
       }
 
-      // Get all loop members
-      const members = await db.query.query.loopMembers.findMany({
-        where: eq(loopMembers.loopId, loopId),
-        with: {
-          user: true
-        }
-      });
-
-      const domain = req.get('host') || 'loopedin.replit.app';
-      const protocol = req.protocol || 'https';
-      const viewUrl = `${protocol}://${domain}/newsletters/${newsletter.urlId}`;
-
-      // Send SMS notifications to all loop members
-      const sentTo: string[] = [];
-      for (const member of members) {
-        if (!member.user?.phoneNumber) continue;
-
-        try {
-          await sendSMS(
-            member.user.phoneNumber,
-            `New update from your loop! View it here: ${viewUrl}`
-          );
-          sentTo.push(member.user.phoneNumber);
-        } catch (error) {
-          console.error(`Failed to send SMS to ${member.user.phoneNumber}:`, error);
-          // Continue with other members even if one fails
-        }
-      }
-
-      // Update newsletter status
+      // Update the newsletter status to 'sent'
       const [updatedNewsletter] = await db
         .update(newsletters)
         .set({
           status: 'sent',
-          sentAt: new Date()
+          sentAt: new Date(),
         })
         .where(eq(newsletters.id, newsletterId))
         .returning();
 
-      // Return success response with stats
-      res.json({
-        newsletter: updatedNewsletter,
-        sentTo,
-        failedCount: members.length - sentTo.length
-      });
+      res.json(updatedNewsletter);
     } catch (error) {
       console.error("Error sending newsletter:", error);
       res.status(500).send("Failed to send newsletter");
@@ -1125,6 +1062,6 @@ export function registerRoutes(app: Express): Server {
   });
 
   // Create HTTP server and return it
-  const server = createServer(app);
-  return server;
+  const httpServer = createServer(app);
+  return httpServer;
 }

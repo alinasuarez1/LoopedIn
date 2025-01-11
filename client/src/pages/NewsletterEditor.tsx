@@ -28,7 +28,7 @@ export default function NewsletterEditor() {
   const [content, setContent] = useState("");
 
   // Fetch newsletter data
-  const { data: newsletter, isLoading } = useQuery<Newsletter>({
+  const { data: newsletter, isLoading, error } = useQuery<Newsletter>({
     queryKey: [`/api/loops/${loopId}/newsletters/${newsletterId}/preview`],
   });
 
@@ -107,7 +107,7 @@ export default function NewsletterEditor() {
     );
   }
 
-  if (!newsletter) {
+  if (error || !newsletter) {
     return (
       <div className="container mx-auto p-4">
         <Card className="border-destructive">
@@ -115,7 +115,7 @@ export default function NewsletterEditor() {
             <CardTitle className="text-destructive">Error</CardTitle>
           </CardHeader>
           <CardContent>
-            <p>Newsletter not found</p>
+            <p>{error?.message || "Failed to load newsletter"}</p>
           </CardContent>
         </Card>
       </div>
@@ -176,6 +176,7 @@ export default function NewsletterEditor() {
             value={content}
             onChange={(e) => setContent(e.target.value)}
             className="min-h-[500px] font-mono"
+            placeholder="Loading newsletter content..."
           />
         </CardContent>
       </Card>
