@@ -10,7 +10,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Loader2, Send, Eye } from "lucide-react";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useToast } from "@/hooks/use-toast";
 
 interface Newsletter {
@@ -26,16 +26,18 @@ export default function NewsletterEditor() {
   const { loopId, newsletterId } = useParams<{ loopId: string, newsletterId: string }>();
   const { toast } = useToast();
   const [content, setContent] = useState("");
-  
+
   // Fetch newsletter data
   const { data: newsletter, isLoading } = useQuery<Newsletter>({
     queryKey: [`/api/loops/${loopId}/newsletters/${newsletterId}/preview`],
-    onSuccess: (data) => {
-      if (!content) {
-        setContent(data.content);
-      }
-    },
   });
+
+  // Set content when newsletter data is loaded
+  useEffect(() => {
+    if (newsletter?.content) {
+      setContent(newsletter.content);
+    }
+  }, [newsletter]);
 
   // Update newsletter content
   const updateMutation = useMutation({
