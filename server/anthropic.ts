@@ -93,7 +93,11 @@ Important guidelines:
       messages: [{ role: 'user', content: prompt }],
     });
 
-    const newsletterContent = response.content[0].text;
+    const newsletterContent = response.content[0].type === 'text' ? response.content[0].text : '';
+
+    if (!newsletterContent) {
+      throw new Error("Failed to generate newsletter content");
+    }
 
     return `
 <div class="newsletter-content max-w-4xl mx-auto">
@@ -137,7 +141,8 @@ Please output only the highlights, one per line, focusing on:
       messages: [{ role: 'user', content: prompt }],
     });
 
-    return response.content[0].text.split('\n').filter(Boolean);
+    const content = response.content[0].type === 'text' ? response.content[0].text : '';
+    return content ? content.split('\n').filter(Boolean) : [];
   } catch (error) {
     console.error('Failed to analyze updates:', error);
     throw new Error('Failed to analyze updates. Please try again later.');
@@ -168,7 +173,7 @@ Provide specific, actionable suggestions.`;
       messages: [{ role: 'user', content: prompt }],
     });
 
-    return response.content[0].text;
+    return response.content[0].type === 'text' ? response.content[0].text : '';
   } catch (error) {
     console.error('Failed to suggest improvements:', error);
     throw new Error('Failed to analyze newsletter. Please try again later.');
