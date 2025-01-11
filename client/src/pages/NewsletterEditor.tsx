@@ -9,14 +9,14 @@ import {
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { Loader2, Send, Eye } from "lucide-react";
+import { Loader2, Send, Eye, CheckCircle } from "lucide-react";
 import { useState, useEffect } from "react";
 import { useToast } from "@/hooks/use-toast";
 
 interface Newsletter {
   id: number;
   content: string;
-  status: 'draft' | 'sent';
+  status: 'draft' | 'finalized' | 'sent';
   urlId: string;
   sentAt: string | null;
   loopId: number;
@@ -65,6 +65,35 @@ export default function NewsletterEditor() {
       toast({
         title: "Error",
         description: error.message || "Failed to save changes",
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Finalize newsletter
+  const finalizeMutation = useMutation({
+    mutationFn: async () => {
+      const response = await fetch(`/api/loops/${loopId}/newsletters/${newsletterId}/finalize`, {
+        method: 'POST',
+        credentials: 'include',
+      });
+
+      if (!response.ok) {
+        throw new Error(await response.text());
+      }
+
+      return response.json();
+    },
+    onSuccess: () => {
+      toast({
+        title: "Newsletter Finalized",
+        description: "The newsletter has been finalized and is ready to send.",
+      });
+    },
+    onError: (error) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to finalize newsletter",
         variant: "destructive",
       });
     },
@@ -122,6 +151,9 @@ export default function NewsletterEditor() {
     );
   }
 
+  const canFinalize = newsletter.status === 'draft';
+  const canSend = newsletter.status === 'finalized';
+
   return (
     <div className="container mx-auto p-4 space-y-6">
       <Card>
@@ -135,7 +167,7 @@ export default function NewsletterEditor() {
           <div className="flex gap-4 mb-4">
             <Button
               onClick={() => updateMutation.mutate()}
-              disabled={updateMutation.isPending}
+              disabled={updateMutation.isPending || !canFinalize}
             >
               {updateMutation.isPending ? (
                 <>
@@ -153,23 +185,44 @@ export default function NewsletterEditor() {
               <Eye className="mr-2 h-4 w-4" />
               Preview
             </Button>
-            <Button
-              variant="default"
-              onClick={() => sendMutation.mutate()}
-              disabled={sendMutation.isPending}
-            >
-              {sendMutation.isPending ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Sending...
-                </>
-              ) : (
-                <>
-                  <Send className="mr-2 h-4 w-4" />
-                  Send to Members
-                </>
-              )}
-            </Button>
+            {canFinalize && (
+              <Button
+                variant="outline"
+                onClick={() => finalizeMutation.mutate()}
+                disabled={finalizeMutation.isPending}
+              >
+                {finalizeMutation.isPending ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Finalizing...
+                  </>
+                ) : (
+                  <>
+                    <CheckCircle className="mr-2 h-4 w-4" />
+                    Finalize
+                  </>
+                )}
+              </Button>
+            )}
+            {canSend && (
+              <Button
+                variant="default"
+                onClick={() => sendMutation.mutate()}
+                disabled={sendMutation.isPending}
+              >
+                {sendMutation.isPending ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Sending...
+                  </>
+                ) : (
+                  <>
+                    <Send className="mr-2 h-4 w-4" />
+                    Send to Members
+                  </>
+                )}
+              </Button>
+            )}
           </div>
 
           <Textarea
@@ -177,6 +230,7 @@ export default function NewsletterEditor() {
             onChange={(e) => setContent(e.target.value)}
             className="min-h-[500px] font-mono"
             placeholder="Loading newsletter content..."
+            disabled={!canFinalize}
           />
         </CardContent>
       </Card>

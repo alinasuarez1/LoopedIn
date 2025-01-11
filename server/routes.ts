@@ -2,13 +2,14 @@ import type { Express, Request, Response, NextFunction } from "express";
 import { createServer, type Server } from "http";
 import { setupAuth } from "./auth";
 import { db } from "@db";
-import { loops, loopMembers, updates, newsletters, users, type User } from "@db/schema";
+import { loops, loopMembers, updates, newsletters, users, type User, type InsertNewsletter } from "@db/schema";
 import { and, eq, desc, ilike } from "drizzle-orm";
 import { generateNewsletter, suggestNewsletterImprovements } from "./openai";
 import { sendWelcomeMessage, sendSMS } from "./twilio";
 import { processAndSaveMedia } from "./storage";
 import { nanoid } from 'nanoid';
 import { randomBytes } from 'node:crypto';
+import type { SQL } from 'drizzle-orm';
 
 // Middleware to check if user has privileged access
 const requirePrivilegedAccess = async (req: Request, res: Response, next: NextFunction) => {
@@ -33,28 +34,22 @@ export function registerRoutes(app: Express): Server {
     const { search, sort = "recent" } = req.query;
 
     try {
-      let baseQuery = {
+      // Fix the query configuration for loops.findMany
+      const baseQuery = {
         with: {
-          creator: {
-            columns: {
-              id: true,
-              firstName: true,
-              lastName: true,
-              email: true
-            }
-          },
+          creator: true,
           members: {
             with: {
-              user: true
-            }
+              user: true,
+            },
           },
           updates: {
             with: {
-              user: true
-            }
+              user: true,
+            },
           },
-          newsletters: true
-        }
+          newsletters: true,
+        },
       };
 
       let whereClause = undefined;
@@ -64,7 +59,7 @@ export function registerRoutes(app: Express): Server {
         whereClause = ilike(loops.name, `%${search.trim()}%`);
       }
 
-      // Construct the query
+      // Update the findMany query
       const allLoops = await db.query.loops.findMany({
         ...baseQuery,
         ...(whereClause ? { where: whereClause } : {}),
@@ -764,13 +759,17 @@ export function registerRoutes(app: Express): Server {
       loop.vibe
     );
 
-    // Save the newsletter
+    // Fix the insert operation for newsletters
+    // Type the newsletter values explicitly
+    const newsletterData: Omit<InsertNewsletter, 'id' | 'createdAt' | 'updatedAt' | 'sentAt'> = {
+      loopId: parseInt(req.params.id),
+      content: newsletterContent,
+      status: 'draft',
+    };
+
     const [newsletter] = await db
       .insert(newsletters)
-      .values({
-        loopId,
-        content: newsletterContent,
-      })
+      .values(newsletterData)
       .returning();
 
     res.json(newsletter);
@@ -831,14 +830,16 @@ export function registerRoutes(app: Express): Server {
       const urlId = nanoid(10);
 
       // Save the draft newsletter
+      const newsletterData: Omit<InsertNewsletter, 'id' | 'createdAt' | 'updatedAt' | 'sentAt'> = {
+        loopId,
+        content: newsletterContent,
+        status: 'draft',
+        urlId,
+      };
+
       const [newsletter] = await db
         .insert(newsletters)
-        .values({
-          loopId,
-          content: newsletterContent,
-          status: 'draft',
-          urlId,
-        })
+        .values(newsletterData)
         .returning();
 
       if (!newsletter) {
@@ -1026,7 +1027,7 @@ export function registerRoutes(app: Express): Server {
   app.post("/api/loops/:id/newsletters/:newsletterId/send", requirePrivilegedAccess, async (req, res) => {
     try {
       const loopId = parseInt(req.params.id);
-      const newsletterId = parseInt(req.params.newsletterId);
+      const newsletterId = parseInt(reqparams.newsletterId);
 
       // Get the newsletter and verify it exists
       const [newsletter] = await db
@@ -1058,6 +1059,47 @@ export function registerRoutes(app: Express): Server {
     } catch (error) {
       console.error("Error sending newsletter:", error);
       res.status(500).send("Failed to send newsletter");
+    }
+  });
+
+  app.post("/api/loops/:id/newsletters/:newsletterId/finalize", requirePrivilegedAccess, async (req, res) => {
+    try {
+      const loopId = parseInt(req.params.id);
+      const newsletterId = parseInt(req.params.newsletterId);
+
+      // Get the newsletter and verify it exists and is in draft status
+      const [newsletter] = await db
+        .select()
+        .from(newsletters)
+        .where(
+          and(
+            eq(newsletters.id, newsletterId),
+            eq(newsletters.loopId, loopId),
+            eq(newsletters.status, 'draft')
+          )
+        )
+        .limit(1);
+
+      if (!newsletter) {
+        return res.status(404).send("Newsletter not found or not in draft status");
+      }
+
+      // Update the newsletter status to finalized
+      if (newsletter) {
+        const [updatedNewsletter] = await db
+          .update(newsletters)
+          .set({
+            status: 'finalized' as const,
+            updatedAt: new Date(),
+          })
+          .where(eq(newsletters.id, newsletter.id))
+          .returning();
+      }
+
+      res.json(newsletter);
+    } catch (error) {
+      console.error("Error finalizing newsletter:", error);
+      res.status(500).send("Failed to finalize newsletter");
     }
   });
 
