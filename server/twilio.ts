@@ -63,9 +63,21 @@ export async function sendSMS(phoneNumber: string, message: string) {
 }
 
 export async function sendReminder(phoneNumber: string, loopName: string) {
-  console.log(`Sending reminder to ${phoneNumber} for loop ${loopName}`);
-  const message = `Hi! Share your updates for ${loopName}'s newsletter! Reply to this message with text or photos.`;
-  return sendMessage(phoneNumber, message);
+  if (!hasCredentials) {
+    console.warn('Twilio credentials not configured. SMS reminders are disabled.');
+    return { smsStatus: 'disabled' };
+  }
+
+  try {
+    console.log(`Sending reminder to ${phoneNumber} for loop ${loopName}`);
+    const message = `Hi! Share your updates for ${loopName}'s newsletter! Reply to this message with text or photos.`;
+    await sendSMS(phoneNumber, message);
+    console.log(`Reminder sent successfully to ${phoneNumber}`);
+    return { smsStatus: 'enabled' };
+  } catch (error) {
+    console.error('Error sending reminder:', error);
+    return { smsStatus: 'error', error };
+  }
 }
 
 export async function sendScheduledReminders() {

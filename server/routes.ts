@@ -523,6 +523,10 @@ export function registerRoutes(app: Express): Server {
 
     const { firstName, lastName, email, phoneNumber, context } = req.body;
 
+    if (!phoneNumber) {
+      return res.status(400).send("Phone number is required");
+    }
+
     try {
       // First check if user already exists with this phone number
       let memberUser = await db.query.users.findFirst({
@@ -535,7 +539,7 @@ export function registerRoutes(app: Express): Server {
         console.log('Creating new user with temp password');
 
         // Create new user if they don't exist
-        [memberUser] = await db
+        const [newUser] = await db
           .insert(users)
           .values({
             firstName,
@@ -545,6 +549,12 @@ export function registerRoutes(app: Express): Server {
             password: tempPassword, // They'll need to reset this later
           })
           .returning();
+
+        if (!newUser) {
+          throw new Error("Failed to create user");
+        }
+
+        memberUser = newUser;
       }
 
       // Check if they're already a member of this loop
@@ -559,6 +569,16 @@ export function registerRoutes(app: Express): Server {
         return res.status(400).send("User is already a member of this loop");
       }
 
+      // Get loop details for welcome message
+      const [loop] = await db.query.loops.findMany({
+        where: eq(loops.id, parseInt(req.params.id)),
+        limit: 1,
+      });
+
+      if (!loop) {
+        return res.status(404).send("Loop not found");
+      }
+
       // Create loop membership
       const [member] = await db
         .insert(loopMembers)
@@ -568,6 +588,19 @@ export function registerRoutes(app: Express): Server {
           context,
         })
         .returning();
+
+      if (!member) {
+        throw new Error("Failed to create loop membership");
+      }
+
+      // Try to send welcome message
+      try {
+        const welcomeResult = await sendWelcomeMessage(memberUser.phoneNumber, loop.name);
+        console.log(`Welcome message status for ${memberUser.phoneNumber}:`, welcomeResult);
+      } catch (smsError) {
+        console.error('Failed to send welcome SMS:', smsError);
+        // Continue with member creation even if SMS fails
+      }
 
       // Return member with user data
       const [completeMember] = await db.query.loopMembers.findMany({
@@ -1002,7 +1035,7 @@ export function registerRoutes(app: Express): Server {
           content,
           updatedAt: new Date(),
         })
-        .where(
+                .where(
           and(
             eq(newsletters.id, parseInt(req.params.newsletterId)),
             eq(newsletters.loopId, parseInt(req.params.id))
@@ -1010,12 +1043,11 @@ export function registerRoutes(app: Express): Server {
         )
         .returning();
 
-      if (!newsletter) {
-        return res.status(404).send("Newsletter not found");
+      if (!newsletter) {        return res.status(404).send("Newsletter not found");
       }
 
       // If requested, get improvement suggestions
-      if (req.query.suggest === 'true') {
+      if (req.query.suggest=== 'true') {
         const loop = await db.query.loops.findFirst({
           where: eq(loops.id, parseInt(req.params.id)),
         });
