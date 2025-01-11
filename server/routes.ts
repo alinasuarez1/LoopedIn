@@ -386,12 +386,8 @@ export function registerRoutes(app: Express): Server {
         });
 
       // Try to send welcome message, but don't block on failure
-      try {
-        await sendWelcomeMessage(user.phoneNumber, loop.name);
-      } catch (smsError) {
-        console.warn('Failed to send welcome SMS:', smsError);
-        // Continue with loop creation even if SMS fails
-      }
+      sendWelcomeMessage(user.phoneNumber, loop.name)
+        .catch(error => console.warn('Failed to send welcome SMS:', error));
 
       // Fetch the complete loop with members
       const [completeLoop] = await db.query.loops.findMany({
@@ -536,7 +532,6 @@ export function registerRoutes(app: Express): Server {
       if (!memberUser) {
         // Generate a random temporary password for new users
         const tempPassword = randomBytes(16).toString('hex');
-        console.log('Creating new user with temp password');
 
         // Create new user if they don't exist
         const [newUser] = await db
@@ -546,7 +541,7 @@ export function registerRoutes(app: Express): Server {
             lastName,
             email: email || null,
             phoneNumber,
-            password: tempPassword, // They'll need to reset this later
+            password: tempPassword,
           })
           .returning();
 
@@ -593,14 +588,9 @@ export function registerRoutes(app: Express): Server {
         throw new Error("Failed to create loop membership");
       }
 
-      // Try to send welcome message
-      try {
-        const welcomeResult = await sendWelcomeMessage(memberUser.phoneNumber, loop.name);
-        console.log(`Welcome message status for ${memberUser.phoneNumber}:`, welcomeResult);
-      } catch (smsError) {
-        console.error('Failed to send welcome SMS:', smsError);
-        // Continue with member creation even if SMS fails
-      }
+      // Send welcome message without waiting for response
+      sendWelcomeMessage(memberUser.phoneNumber, loop.name)
+        .catch(error => console.error('Failed to send welcome SMS:', error));
 
       // Return member with user data
       const [completeMember] = await db.query.loopMembers.findMany({
@@ -1035,7 +1025,7 @@ export function registerRoutes(app: Express): Server {
           content,
           updatedAt: new Date(),
         })
-                .where(
+        .where(
           and(
             eq(newsletters.id, parseInt(req.params.newsletterId)),
             eq(newsletters.loopId, parseInt(req.params.id))
@@ -1047,8 +1037,7 @@ export function registerRoutes(app: Express): Server {
       }
 
       // If requested, get improvement suggestions
-      if (req.query.suggest=== 'true') {
-        const loop = await db.query.loops.findFirst({
+      if (req.query.suggest=== 'true') {        const loop = await db.query.loops.findFirst({
           where: eq(loops.id, parseInt(req.params.id)),
         });
 

@@ -21,80 +21,60 @@ if (hasCredentials) {
 }
 
 export async function sendWelcomeMessage(phoneNumber: string, loopName: string) {
-  if (!hasCredentials) {
-    console.warn('Twilio credentials not configured. SMS features are disabled.');
-    return { smsStatus: 'disabled' };
+  if (!hasCredentials || !client || !fromNumber) {
+    console.warn('Twilio not configured, skipping welcome message');
+    return;
   }
 
   try {
-    console.log(`Sending welcome message to ${phoneNumber} for loop ${loopName}`);
-    await client!.messages.create({
-      body: `Welcome to ${loopName}! 🎉 You're now connected with your group through LoopedIn. Share your updates by replying to this message, and we'll include them in the next newsletter!`,
-      from: fromNumber!,
+    await client.messages.create({
+      body: `Welcome to ${loopName}! 🎉 You're now connected with your group. Share your updates by replying to this message!`,
+      from: fromNumber,
       to: phoneNumber
     });
-    console.log(`Welcome message sent successfully to ${phoneNumber}`);
-    return { smsStatus: 'enabled' };
+    console.log(`Sent welcome message to ${phoneNumber} for ${loopName}`);
   } catch (error) {
-    console.error('Error sending welcome message:', error);
-    return { smsStatus: 'error', error };
+    console.error('Failed to send welcome message:', error);
   }
 }
 
 export async function sendSMS(phoneNumber: string, message: string) {
-  if (!hasCredentials) {
-    console.warn('Twilio credentials not configured. SMS features are disabled.');
-    return { smsStatus: 'disabled' };
+  if (!hasCredentials || !client || !fromNumber) {
+    console.warn('Twilio not configured, skipping SMS');
+    return;
   }
 
   try {
-    console.log(`Sending message to ${phoneNumber}`);
-    await client!.messages.create({
+    await client.messages.create({
       body: message,
-      from: fromNumber!,
+      from: fromNumber,
       to: phoneNumber
     });
-    console.log(`Message sent successfully to ${phoneNumber}: ${message}`);
-    return { smsStatus: 'enabled' };
+    console.log(`Sent message to ${phoneNumber}`);
   } catch (error) {
-    console.error('Error sending message:', error);
-    return { smsStatus: 'error', error };
+    console.error('Failed to send message:', error);
   }
 }
 
 export async function sendReminder(phoneNumber: string, loopName: string) {
-  if (!hasCredentials) {
-    console.warn('Twilio credentials not configured. SMS reminders are disabled.');
-    return { smsStatus: 'disabled' };
-  }
-
-  try {
-    console.log(`Sending reminder to ${phoneNumber} for loop ${loopName}`);
-    const message = `Hi! Share your updates for ${loopName}'s newsletter! Reply to this message with text or photos.`;
-    await sendSMS(phoneNumber, message);
-    console.log(`Reminder sent successfully to ${phoneNumber}`);
-    return { smsStatus: 'enabled' };
-  } catch (error) {
-    console.error('Error sending reminder:', error);
-    return { smsStatus: 'error', error };
-  }
+  const message = `Hi! Share your updates for ${loopName}'s newsletter! Reply to this message with text or photos.`;
+  await sendSMS(phoneNumber, message);
 }
 
+// Reminder scheduler
 export async function sendScheduledReminders() {
   if (!hasCredentials) {
-    console.warn('Twilio credentials not configured. SMS reminders are disabled.');
+    console.warn('Twilio not configured, skipping reminders');
     return;
   }
 
   const now = new Date();
-  // Get current day and time in Eastern Time
   const currentDay = formatInTimeZone(now, 'America/New_York', 'EEEE');
   const currentTime = formatInTimeZone(now, 'America/New_York', 'HH:mm');
 
   console.log(`Checking for reminders on ${currentDay} at ${currentTime} Eastern Time`);
 
   try {
-    // Query all loops that have reminders scheduled for current day and time
     const loopsToRemind = await db.query.loops.findMany({
       where: sql`EXISTS (
         SELECT 1 FROM jsonb_array_elements(CAST(${loops.reminderSchedule} AS JSONB)) as schedule
@@ -116,13 +96,12 @@ export async function sendScheduledReminders() {
       console.log(`Processing reminders for loop: ${loop.name}`);
       for (const member of loop.members) {
         if (member.user?.phoneNumber) {
-          console.log(`Sending reminder to ${member.user.phoneNumber}`);
           await sendReminder(member.user.phoneNumber, loop.name);
         }
       }
     }
 
-    console.log(`Sent reminders for ${loopsToRemind.length} loops on ${currentDay} at ${currentTime} Eastern Time`);
+    console.log(`Sent reminders for ${loopsToRemind.length} loops`);
   } catch (error) {
     console.error('Error sending scheduled reminders:', error);
   }
