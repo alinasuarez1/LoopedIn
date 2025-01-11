@@ -33,16 +33,16 @@ export const loops = pgTable("loops", {
 
 export const loopMembers = pgTable("loop_members", {
   id: serial("id").primaryKey(),
-  loopId: integer("loop_id").references(() => loops.id),
-  userId: integer("user_id").references(() => users.id),
+  loopId: integer("loop_id").references(() => loops.id).notNull(),
+  userId: integer("user_id").references(() => users.id).notNull(),
   context: text("context"),
   createdAt: timestamp("created_at").defaultNow(),
 });
 
 export const updates = pgTable("updates", {
   id: serial("id").primaryKey(),
-  loopId: integer("loop_id").references(() => loops.id),
-  userId: integer("user_id").references(() => users.id),
+  loopId: integer("loop_id").references(() => loops.id).notNull(),
+  userId: integer("user_id").references(() => users.id).notNull(),
   content: text("content").notNull(),
   mediaUrls: jsonb("media_urls").$type<string[]>().default([]),
   createdAt: timestamp("created_at").defaultNow(),
@@ -98,6 +98,7 @@ export const newslettersRelations = relations(newsletters, ({ one }) => ({
   }),
 }));
 
+// Schemas for validation
 export const insertUserSchema = createInsertSchema(users);
 export const selectUserSchema = createSelectSchema(users);
 export const insertLoopSchema = createInsertSchema(loops);
@@ -109,6 +110,7 @@ export const selectUpdateSchema = createSelectSchema(updates);
 export const insertNewsletterSchema = createInsertSchema(newsletters);
 export const selectNewsletterSchema = createSelectSchema(newsletters);
 
+// Type exports
 export type User = typeof users.$inferSelect;
 export type InsertUser = typeof users.$inferInsert;
 export type Loop = typeof loops.$inferSelect;
