@@ -1,10 +1,10 @@
 import type { Express, Request, Response, NextFunction } from "express";
 import { createServer, type Server } from "http";
-import { setupAuth } from "./auth";
 import { db } from "@db";
-import { loops, loopMembers, updates, newsletters, users, type User } from "@db/schema";
-import { and, eq } from "drizzle-orm";
+import { type User, newsletters, users, loopMembers, loops, updates } from "@db/schema";
+import { eq, and, ilike, desc } from "drizzle-orm";
 import { sendSMS } from "./twilio";
+import { nanoid } from 'nanoid';
 
 // Middleware to check if user has privileged access
 const requirePrivilegedAccess = async (req: Request, res: Response, next: NextFunction) => {
@@ -21,8 +21,148 @@ const requirePrivilegedAccess = async (req: Request, res: Response, next: NextFu
 };
 
 export function registerRoutes(app: Express): Server {
-  // Setup authentication routes
-  setupAuth(app);
+  // Newsletters
+  app.post("/api/loops/:id/newsletters", async (req: Request, res: Response) => {
+    const user = req.user as User | undefined;
+    if (!user?.id) {
+      return res.status(401).send("Not authenticated");
+    }
+
+    try {
+      // Save the newsletter with a unique URL ID
+      const [newsletter] = await db
+        .insert(newsletters)
+        .values({
+          loopId: parseInt(req.params.id),
+          content: req.body.content,
+          status: 'draft',
+          urlId: nanoid(10),
+        })
+        .returning();
+
+      res.json(newsletter);
+    } catch (error) {
+      console.error("Error creating newsletter:", error);
+      res.status(500).send("Failed to create newsletter");
+    }
+  });
+
+  // Newsletter sending endpoint
+  app.post("/api/newsletters/:id/send", requirePrivilegedAccess, async (req: Request, res: Response) => {
+    try {
+      const newsletterId = parseInt(req.params.id);
+      if (isNaN(newsletterId)) {
+        return res.status(400).json({ error: "Invalid newsletter ID" });
+      }
+
+      // Get newsletter details
+      const [newsletter] = await db
+        .select()
+        .from(newsletters)
+        .where(eq(newsletters.id, newsletterId))
+        .limit(1);
+
+      if (!newsletter) {
+        return res.status(404).json({ error: "Newsletter not found" });
+      }
+
+      // Get member phone numbers for this loop
+      const members = await db
+        .select({
+          phoneNumber: users.phoneNumber,
+        })
+        .from(loopMembers)
+        .innerJoin(users, eq(loopMembers.userId, users.id))
+        .where(eq(loopMembers.loopId, newsletter.loopId));
+
+      if (!members.length) {
+        return res.status(400).json({ error: "No members found for this loop" });
+      }
+
+      // Generate newsletter URL
+      const baseUrl = req.get('host') || 'loopedin.replit.app';
+      const newsletterUrl = `https://${baseUrl}/newsletters/${newsletter.urlId}`;
+
+      // Send SMS to each member
+      let successCount = 0;
+      let failureCount = 0;
+
+      for (const member of members) {
+        if (!member.phoneNumber) continue;
+
+        try {
+          await sendSMS(member.phoneNumber, `New update! Check it out here: ${newsletterUrl}`);
+          successCount++;
+        } catch (error) {
+          failureCount++;
+          console.error(`Failed to send SMS to ${member.phoneNumber}:`, error);
+        }
+      }
+
+      // Mark newsletter as sent
+      await db
+        .update(newsletters)
+        .set({ 
+          status: 'sent',
+          sentAt: new Date()
+        })
+        .where(eq(newsletters.id, newsletterId));
+
+      res.json({
+        success: true,
+        sent: successCount,
+        failed: failureCount,
+        total: members.length
+      });
+
+    } catch (error) {
+      console.error('Error sending newsletter:', error);
+      res.status(500).json({ 
+        error: "Failed to send newsletter",
+        details: error instanceof Error ? error.message : "Unknown error"
+      });
+    }
+  });
+
+  // Newsletter view endpoint
+  app.get("/newsletters/:urlId", async (req: Request, res: Response) => {
+    try {
+      const [newsletter] = await db.query.newsletters.findMany({
+        where: eq(newsletters.urlId, req.params.urlId),
+        with: {
+          loop: true,
+        },
+        limit: 1,
+      });
+
+      if (!newsletter) {
+        return res.status(404).send("Newsletter not found");
+      }
+
+      // Render the newsletter content
+      res.send(`
+        <!DOCTYPE html>
+        <html>
+          <head>
+            <meta charset="UTF-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <title>${newsletter.loop?.name || 'Loop'} Newsletter</title>
+            <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+          </head>
+          <body class="bg-gray-50 min-h-screen py-8">
+            <div class="max-w-4xl mx-auto px-4">
+              <article class="bg-white rounded-xl shadow-lg overflow-hidden p-8">
+                ${newsletter.content}
+              </article>
+            </div>
+          </body>
+        </html>
+      `);
+    } catch (error) {
+      console.error("Error serving newsletter:", error);
+      res.status(500).send("Failed to load newsletter");
+    }
+  });
 
   // Admin Routes - now protected by privileged access check
   app.get("/api/admin/loops", requirePrivilegedAccess, async (req: Request, res: Response) => {
@@ -713,459 +853,20 @@ export function registerRoutes(app: Express): Server {
   });
 
 
-  // Newsletters
-  app.post("/api/loops/:id/newsletters", async (req: Request, res: Response) => {
-    const user = req.user as User | undefined;
-    if (!user?.id) {
-      return res.status(401).send("Not authenticated");
-    }
-
-    const loopId = parseInt(req.params.id);
-
-    // Get all updates for this loop
-    const loop = await db.query.loops.findFirst({
-      where: eq(loops.id, loopId),
-      with: {
-        updates: {
-          with: {
-            user: true,
-          },
-        },
-      },
-    });
-
-    if (!loop) {
-      return res.status(404).send("Loop not found");
-    }
-
-    if (!loop.updates.length) {
-      return res.status(400).send("No updates available for newsletter generation");
-    }
-
-    // Generate newsletter content using OpenAI
-    const updatesForAI = loop.updates.map(update => {
-      const user = update.user;
-      if (!user) {
-        throw new Error("Update missing user information");
-      }
-      return {
-        content: update.content,
-        userName: `${user.firstName} ${user.lastName}`,
-      };
-    });
-
-    const newsletterContent = await generateNewsletter(
-      loop.name,
-      updatesForAI,
-      loop.vibe
-    );
-
-    // Save the newsletter
-    const [newsletter] = await db
-      .insert(newsletters)
-      .values({
-        loopId,
-        content: newsletterContent,
-      })
-      .returning();
-
-    res.json(newsletter);
-  });
-
-  // Newsletter Management Routes
-  app.post("/api/loops/:id/newsletters/generate", requirePrivilegedAccess, async (req: Request, res: Response) => {
-    const user = req.user as User | undefined;
-    if (!user?.id) {
-      return res.status(401).send("Not authenticated");
-    }
-
-    const loopId = parseInt(req.params.id);
-    const { customHeader, customClosing } = req.body;
-
-    try {
-      // Get all updates for this loop
-      const loop = await db.query.loops.findFirst({
-        where: eq(loops.id, loopId),
-        with: {
-          updates: {
-            with: {
-              user: true,
-            },
-          },
-        },
-      });
-
-      if (!loop) {
-        return res.status(404).send("Loop not found");
-      }
-
-      if (!loop.updates.length) {
-        return res.status(400).send("No updates available for newsletter generation");
-      }
-
-      // Generate newsletter content using OpenAI
-      const updatesForAI = loop.updates.map(update => {
-        const user = update.user;
-        if (!user) {
-          throw new Error("Update missing user information");
-        }
-        return {
-          content: update.content,
-          userName: `${user.firstName} ${user.lastName}`,
-          mediaUrls: update.mediaUrls || [],
-        };
-      });
-
-      const newsletterContent = await generateNewsletter(
-        loop.name,
-        updatesForAI,
-        loop.vibe,
-        { customHeader, customClosing }
-      );
-
-      // Generate a unique URL ID
-      const urlId = nanoid(10);
-
-      // Save the draft newsletter
-      const [newsletter] = await db
-        .insert(newsletters)
-        .values({
-          loopId,
-          content: newsletterContent,
-          status: 'draft',
-          urlId,
-        })
-        .returning();
-
-      if (!newsletter) {
-        throw new Error("Failed to create newsletter");
-      }
-
-      // Send notification to admin
-      try {
-        const adminUser = await db.query.users.findFirst({
-          where: eq(users.id, loop.creatorId!),
-        });
-
-        if (adminUser) {
-          const domain = req.get('host') || 'loopedin.replit.app';
-          const protocol = req.protocol || 'https';
-          const previewUrl = `${protocol}://${domain}/newsletters/${urlId}`;
-          await sendSMS(
-            adminUser.phoneNumber,
-            `Your ${loop.name} newsletter draft is ready for review. Check it out here: ${previewUrl}`
-          );
-        }
-      } catch (smsError) {
-        console.error('Failed to send admin notification:', smsError);
-        // Continue even if SMS fails
-      }
-
-      // Return consistent response format
-      res.json({
-        newsletter: {
-          id: newsletter.id,
-          loopId: newsletter.loopId,
-          content: newsletter.content,
-          status: newsletter.status,
-          urlId: newsletter.urlId,
-          sentAt: newsletter.sentAt,
-          createdAt: newsletter.createdAt,
-          updatedAt: newsletter.updatedAt
-        },
-        url: `/newsletters/${urlId}`
-      });
-    } catch (error) {
-      console.error("Error generating newsletter:", error);
-      res.status(500).send(error instanceof Error ? error.message : "Failed to generate newsletter");
-    }
-  });
-
-  // Add a new route to serve newsletters by URL ID
-  app.get("/newsletters/:urlId", async (req: Request, res: Response) => {
-    try {
-      const [newsletter] = await db.query.newsletters.findMany({
-        where: eq(newsletters.urlId, req.params.urlId),
-        with: {
-          loop: true,
-        },
-        limit: 1,
-      });
-
-      if (!newsletter) {
-        return res.status(404).send("Newsletter not found");
-      }
-
-      // Render the newsletter content with improved image handling
-      res.send(`
-        <!DOCTYPE html>
-        <html>
-        <head>
-          <meta charset="UTF-8">
-          <meta name="viewport" content="width=device-width, initial-scale=1.0">
-          <title>${newsletter.loop?.name || 'Loop'} Newsletter</title>
-          <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
-          <style>
-            .newsletter-content {
-              max-width: 800px;
-              margin: 0 auto;
-              padding: 2rem;
-            }
-            .newsletter-content img {
-              max-width: 100%;
-              height: auto;
-              margin: 1.5rem auto;
-              border-radius: 0.5rem;
-              box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
-              display: block;
-            }
-            .newsletter-content figure {
-              margin: 2rem 0;
-            }
-            .newsletter-content h1 {
-              font-size: 2.25rem;
-              font-weight: bold;
-              margin-bottom: 1.5rem;
-              color: #1a1a1a;
-              text-align: center;
-            }
-            .newsletter-content h2 {
-              font-size: 1.5rem;
-              font-weight: bold;
-              margin-top: 2rem;
-              margin-bottom: 1rem;
-              color: #2d3748;
-            }
-            .newsletter-content h3 {
-              font-size: 1.25rem;
-              font-weight: bold;
-              margin-top: 1.5rem;
-              margin-bottom: 0.75rem;
-              color: #4a5568;
-            }
-            .newsletter-content p {
-              margin-bottom: 1rem;
-              line-height: 1.6;
-            }
-            .newsletter-content hr {
-              margin: 2rem 0;
-              border: 0;
-              height: 1px;
-              background-color: #e2e8f0;
-            }
-            .newsletter-content ul {
-              list-style-type: disc;
-              margin-left: 1.5rem;
-              margin-bottom: 1rem;
-            }
-            .newsletter-content li {
-              margin-bottom: 0.5rem;
-            }
-            .update-block {
-              border: 1px solid #e2e8f0;
-              border-radius: 0.5rem;
-              padding: 1.5rem;
-              margin-bottom: 2rem;
-              background-color: #f8fafc;
-            }
-            .update-content {
-              margin: 1rem 0;
-            }
-          </style>
-        </head>
-        <body class="bg-gray-50 min-h-screen py-8">
-          <div class="max-w-4xl mx-auto px-4">
-            <article class="bg-white rounded-xl shadow-lg overflow-hidden">
-              ${newsletter.content}
-            </article>
-          </div>
-        </body>
-        </html>
-      `);
-    } catch (error) {
-      console.error("Error serving newsletter:", error);
-      res.status(500).send("Failed to load newsletter");
-    }
-  });
-
-  // Get newsletter preview
-  app.get("/api/loops/:id/newsletters/:newsletterId/preview", requirePrivilegedAccess, async (req: Request, res: Response) => {
-    try {
-      const [newsletter] = await db.query.newsletters.findMany({
-        where: and(
-          eq(newsletters.id, parseInt(req.params.newsletterId)),
-          eq(newsletters.loopId, parseInt(req.params.id))
-        ),
-        limit: 1,
-      });
-
-      if (!newsletter) {
-        return res.status(404).send("Newsletter not found");
-      }
-
-      res.json(newsletter);
-    } catch (error) {
-      console.error("Error fetching newsletter:", error);
-      res.status(500).send("Failed to fetch newsletter");
-    }
-  });
-
-  // Update newsletter content
-  app.put("/api/loops/:id/newsletters/:newsletterId", requirePrivilegedAccess, async (req: Request, res: Response) => {
-    try {
-      const { content, customHeader, customClosing } = req.body;
-
-      const [newsletter] = await db
-        .update(newsletters)
-        .set({
-          content,
-          updatedAt: new Date(),
-        })
-        .where(
-          and(
-            eq(newsletters.id, parseInt(req.params.newsletterId)),
-            eq(newsletters.loopId, parseInt(req.params.id))
-          )
-        )
-        .returning();
-
-      if (!newsletter) {
-        return res.status(404).send("Newsletter not found");
-      }
-
-      // If requested, get improvement suggestions
-      if (req.query.suggest === 'true') {
-        const loop = await db.query.loops.findFirst({
-          where: eq(loops.id, parseInt(req.params.id)),
-        });
-
-        if (loop) {
-          const suggestions = await suggestNewsletterImprovements(content, loop.vibe);
-          return res.json({ newsletter, suggestions });
-        }
-      }
-
-      res.json({ newsletter });
-    } catch (error) {
-      console.error("Error updating newsletter:", error);
-      res.status(500).send("Failed to update newsletter");
-    }
-  });
-
-  // Approve and send newsletter
-  app.post("/api/loops/:id/newsletters/:newsletterId/send", requirePrivilegedAccess, async (req: Request, res: Response) => {
-    try {
-      // Simple query to get phone numbers
-      const members = await db
-        .select({
-          phoneNumber: users.phoneNumber,
-        })
-        .from(loopMembers)
-        .innerJoin(users, eq(loopMembers.userId, users.id))
-        .where(eq(loopMembers.loopId, parseInt(req.params.id)));
-
-      if (!members.length) {
-        return res.status(400).json({ error: "No members found" });
-      }
-
-      const url = `https://${req.get('host') || 'loopedin.replit.app'}/newsletters/${req.params.newsletterId}`;
-      let sentCount = 0;
-
-      // Send SMS to each member
-      for (const member of members) {
-        if (!member.phoneNumber) continue;
-
-        try {
-          await sendSMS(member.phoneNumber, `New update! Read it here: ${url}`);
-          sentCount++;
-        } catch (error) {
-          console.error('SMS send failed:', error);
-        }
-      }
-
-      res.json({ success: true, sent: sentCount });
-    } catch (error) {
-      res.status(500).json({ error: "Failed to send newsletter" });
-    }
-  });
-
-  // Add a new route to handle newsletter sending
-  app.post("/api/newsletters/:id/send", requirePrivilegedAccess, async (req: Request, res: Response) => {
-    try {
-      console.log('Starting newsletter send process...');
-      const newsletterId = parseInt(req.params.id);
-
-      if (isNaN(newsletterId)) {
-        return res.status(400).json({ error: "Invalid newsletter ID" });
-      }
-
-      // Get newsletter details
-      const [newsletter] = await db
-        .select()
-        .from(newsletters)
-        .where(eq(newsletters.id, newsletterId))
-        .limit(1);
-
-      if (!newsletter) {
-        console.log('Newsletter not found:', newsletterId);
-        return res.status(404).json({ error: "Newsletter not found" });
-      }
-
-      console.log('Found newsletter:', newsletter.id);
-
-      // Get member phone numbers for this loop
-      const members = await db
-        .select({
-          phoneNumber: users.phoneNumber,
-        })
-        .from(loopMembers)
-        .innerJoin(users, eq(users.id, loopMembers.userId))
-        .where(eq(loopMembers.loopId, newsletter.loopId));
-
-      console.log('Found members:', members.length);
-
-      if (!members.length) {
-        return res.status(400).json({ error: "No members found" });
-      }
-
-      // Create newsletter URL
-      const baseUrl = req.get('host') || 'loopedin.replit.app';
-      const url = `https://${baseUrl}/newsletters/${newsletter.urlId}`;
-
-      console.log('Newsletter URL:', url);
-
-      // Send SMS to each member
-      let sent = 0;
-      for (const member of members) {
-        if (!member.phoneNumber) continue;
-
-        try {
-          await sendSMS(
-            member.phoneNumber,
-            `New update from your loop! Read it here: ${url}`
-          );
-          sent++;
-          console.log('SMS sent successfully to:', member.phoneNumber);
-        } catch (err) {
-          console.error('Failed to send SMS:', err);
-        }
-      }
-
-      console.log('Finished sending. Success count:', sent);
-
-      // Return success response
-      res.json({ 
-        success: true, 
-        sent,
-        total: members.length
-      });
-
-    } catch (err) {
-      console.error('Newsletter send error:', err);
-      res.status(500).json({ error: "Failed to send newsletter" });
-    }
-  });
-
   const httpServer = createServer(app);
   return httpServer;
 }
+
+// Placeholder function - needs actual implementation
+async function processAndSaveMedia(url: string, contentType: string): Promise<string> {
+  // This is a placeholder, replace with actual media processing and saving logic.
+  return "mediaUrl";
+}
+
+async function sendWelcomeMessage(phoneNumber: string, loopName: string) {
+  // This is a placeholder, replace with actual SMS sending logic.
+  console.log(`Sending welcome message to ${phoneNumber} for loop ${loopName}`);
+}
+
+// Import for randomBytes function, used in adding members
+import { randomBytes } from 'crypto';
