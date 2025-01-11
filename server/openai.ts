@@ -34,22 +34,18 @@ export async function generateNewsletter(
         </figure>
       `).join('\n') || '';
 
-      return `
-        <div class="update-block mb-8">
-          <h3 class="text-xl font-semibold mb-3">Update from ${u.userName}</h3>
-          <div class="update-content">
-            ${u.content.split('\n').map(p => `<p class="mb-4">${p}</p>`).join('\n')}
-          </div>
-          ${mediaHtml}
-        </div>`;
-    }).join('\n\n');
+      return `### Update from ${u.userName}
+
+${u.content}
+
+${mediaHtml}`;
+    }).join('\n\n---\n\n');
 
     const vibeDescription = vibe.join(', ');
     const customHeader = options?.customHeader || '';
     const customClosing = options?.customClosing || '';
 
-    const prompt = `Generate a comprehensive newsletter for the group "${loopName}" that includes ALL member updates. 
-The newsletter should have a ${vibeDescription} tone.
+    const prompt = `Create an engaging and fun newsletter for the group "${loopName}". The newsletter should have a ${vibeDescription} tone.
 
 ${customHeader ? `Use this custom header: ${customHeader}\n` : ''}
 
@@ -57,27 +53,28 @@ Here are all the updates from members:
 
 ${updatesList}
 
-Format this as a newsletter that MUST include:
-
-1. An engaging title
-2. A brief highlights section identifying key themes (2-3 paragraphs)
-3. ALL member updates in their entirety - this is crucial:
-   - Present each update in full
-   - Do not summarize or omit any updates
-   - Include all images exactly as provided
-   - Maintain the original context and meaning
-4. A brief forward-looking section
+Important requirements:
+1. Create a catchy, fun title that captures the spirit of this update
+2. READ through all updates and organize them creatively:
+   - Create unique, engaging section headers based on common themes, interesting connections, or fun categories you spot
+   - Use emojis creatively in headers to add personality
+   - Make unexpected but delightful connections between different updates
+   - INCLUDE ALL updates in their entirety - no skipping or heavy summarizing!
+3. Add playful transitions between sections
+4. End with an upbeat closing that builds excitement for the next update
 
 ${customClosing ? `\n${customClosing}` : ''}
 
 Important guidelines:
-- Use semantic HTML tags (<h1>, <h2>, etc.)
-- Keep the structure clear and consistent
-- Maintain a ${vibeDescription} tone throughout
-- Preserve all HTML content exactly as provided, especially image tags
-- Add emoji icons to section headers
-- Break up text into digestible paragraphs
-- Do not skip or heavily summarize any updates - include everything`;
+- Use semantic HTML (<h1>, <h2>, etc.) but make the headers fun and original
+- Be creative with emojis - use them to add personality, not just decoration
+- Keep your ${vibeDescription} tone throughout
+- Preserve all HTML content exactly as provided, especially images
+- Make the newsletter feel like a fun conversation, not a formal report
+- Include every single update, but organize them in an engaging way
+- Break up text into digestible chunks
+- Feel free to add brief reactions or playful comments between sections
+- Make connections between updates when you spot them`;
 
     const completion = await openai.chat.completions.create({
       model: "gpt-4-turbo-preview",
