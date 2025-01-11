@@ -35,7 +35,7 @@ export async function generateNewsletter(
       `).join('\n') || '';
 
       return `<div class="update-details" data-member="${u.userName}">
-  <div class="update-content">
+  <div class="update-content mb-4">
     ${u.content}
   </div>
   ${mediaHtml}
@@ -67,6 +67,10 @@ Important requirements:
    - Brief narrative commentary between sections
    - Creative use of emojis that fit the story
 4. End with an engaging closing that ties everything together
+5. IMPORTANT: For any update that includes images:
+   - Keep all image tags exactly as provided
+   - Introduce images naturally in the narrative
+   - Add context around the images to make them part of the story
 
 ${customClosing ? `\n${customClosing}` : ''}
 
@@ -80,6 +84,7 @@ Important guidelines:
 - Preserve all original content while presenting it creatively
 - Include every update but blend them naturally into the narrative
 - Use member quotes to highlight key points
+- Keep ALL original content including images exactly as provided
 - Keep the original context and meaning of updates intact`;
 
     const response = await anthropic.messages.create({
@@ -88,7 +93,7 @@ Important guidelines:
       messages: [{ role: 'user', content: prompt }],
     });
 
-    const newsletterContent = response.content[0].value || '';
+    const newsletterContent = response.content[0].text;
 
     return `
 <div class="newsletter-content max-w-4xl mx-auto">
@@ -117,9 +122,9 @@ Important guidelines:
 export async function analyzeUpdatesForHighlights(updates: string[]): Promise<string[]> {
   try {
     const prompt = `Given these updates from a group, identify 3-5 key themes or highlights that would be interesting to feature in a newsletter:
-      
+
 ${updates.join('\n')}
-      
+
 Please output only the highlights, one per line, focusing on:
 - Common themes across updates
 - Notable achievements or milestones
@@ -132,7 +137,7 @@ Please output only the highlights, one per line, focusing on:
       messages: [{ role: 'user', content: prompt }],
     });
 
-    return (response.content[0].value || '').split('\n').filter(Boolean);
+    return response.content[0].text.split('\n').filter(Boolean);
   } catch (error) {
     console.error('Failed to analyze updates:', error);
     throw new Error('Failed to analyze updates. Please try again later.');
@@ -145,16 +150,16 @@ export async function suggestNewsletterImprovements(
 ): Promise<string> {
   try {
     const prompt = `Review this newsletter draft and suggest improvements to make it more engaging and aligned with the ${vibe.join(', ')} vibe:
-      
+
 ${newsletterContent}
-      
+
 Focus on:
 1. Tone and voice consistency
 2. Structure and flow
 3. Engagement factors
 4. Personal touches
 5. Call-to-action effectiveness
-      
+
 Provide specific, actionable suggestions.`;
 
     const response = await anthropic.messages.create({
@@ -163,7 +168,7 @@ Provide specific, actionable suggestions.`;
       messages: [{ role: 'user', content: prompt }],
     });
 
-    return response.content[0].value || '';
+    return response.content[0].text;
   } catch (error) {
     console.error('Failed to suggest improvements:', error);
     throw new Error('Failed to analyze newsletter. Please try again later.');
