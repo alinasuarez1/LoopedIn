@@ -8,7 +8,7 @@ import { generateNewsletter, suggestNewsletterImprovements } from "./openai";
 import { sendWelcomeMessage, sendSMS } from "./twilio";
 import { processAndSaveMedia } from "./storage";
 import { nanoid } from 'nanoid';
-import * as crypto from 'node:crypto';
+import { randomBytes } from 'node:crypto';
 
 // Middleware to check if user has privileged access
 const requirePrivilegedAccess = async (req: Request, res: Response, next: NextFunction) => {
@@ -531,7 +531,7 @@ export function registerRoutes(app: Express): Server {
 
       if (!memberUser) {
         // Generate a random temporary password for new users
-        const tempPassword = crypto.randomBytes(16).toString('hex');
+        const tempPassword = randomBytes(16).toString('hex');
         console.log('Creating new user with temp password');
 
         // Create new user if they don't exist

@@ -48,12 +48,12 @@ export async function generateNewsletter(
     const customHeader = options?.customHeader || '';
     const customClosing = options?.customClosing || '';
 
-    const prompt = `Generate a well-structured newsletter for the group "${loopName}". 
+    const prompt = `Generate a comprehensive newsletter for the group "${loopName}" that includes all member updates. 
 The newsletter should have a ${vibeDescription} tone.
 
 ${customHeader ? `Use this custom header: ${customHeader}\n` : ''}
 
-Here are the updates from members:
+Here are all the updates from members:
 
 ${updatesList}
 
@@ -65,20 +65,22 @@ Please format this as a well-structured newsletter that includes:
 [Brief overview highlighting key themes or patterns from the updates]
 
 ## 📝 Member Updates
-[Individual member updates, organized in an engaging way]
+[Include all member updates, maintaining their original content while organizing them in an engaging way. Do not summarize or omit any updates - present each one in full.]
 
 ## 🎯 Looking Forward
 [Brief forward-looking section that builds anticipation for the next update]
 
 ${customClosing ? `\n${customClosing}` : ''}
 
-Make sure to:
+Important guidelines:
 - Use HTML tags for proper formatting (<h1>, <h2>, etc.)
 - Keep section headers clear and consistent
 - Maintain a friendly, ${vibeDescription} tone throughout
-- Preserve all existing HTML content exactly as provided
+- Preserve all existing HTML content exactly as provided, especially image tags
 - Add emoji icons to section headers for visual appeal
-- Break up text into digestible paragraphs`;
+- Break up text into digestible paragraphs
+- Include ALL member updates in their entirety - do not skip or heavily summarize any updates
+- Organize updates in a way that flows naturally but ensures all content is preserved`;
 
     const completion = await openai.chat.completions.create({
       model: "gpt-4-turbo-preview",
