@@ -28,8 +28,16 @@ export default function NewsletterEditor() {
   const [content, setContent] = useState("");
 
   // Fetch newsletter data
-  const { data: newsletter, isLoading } = useQuery<Newsletter>({
+  const { data: newsletter, isLoading, error } = useQuery<Newsletter>({
     queryKey: [`/api/loops/${loopId}/newsletters/${newsletterId}/preview`],
+    retry: 1,
+    onError: (err: Error) => {
+      toast({
+        title: "Error",
+        description: err.message,
+        variant: "destructive",
+      });
+    }
   });
 
   // Set content when newsletter data is loaded
@@ -61,10 +69,10 @@ export default function NewsletterEditor() {
         description: "Newsletter draft has been updated.",
       });
     },
-    onError: (error) => {
+    onError: (err: Error) => {
       toast({
         title: "Error",
-        description: error.message || "Failed to save changes",
+        description: err.message,
         variant: "destructive",
       });
     },
@@ -90,10 +98,10 @@ export default function NewsletterEditor() {
         description: "The newsletter has been sent to all loop members.",
       });
     },
-    onError: (error) => {
+    onError: (err: Error) => {
       toast({
         title: "Error",
-        description: error.message || "Failed to send newsletter",
+        description: err.message,
         variant: "destructive",
       });
     },
@@ -107,7 +115,7 @@ export default function NewsletterEditor() {
     );
   }
 
-  if (!newsletter) {
+  if (error || !newsletter) {
     return (
       <div className="container mx-auto p-4">
         <Card className="border-destructive">
@@ -115,7 +123,7 @@ export default function NewsletterEditor() {
             <CardTitle className="text-destructive">Error</CardTitle>
           </CardHeader>
           <CardContent>
-            <p>Newsletter not found</p>
+            <p>{error instanceof Error ? error.message : "Newsletter not found"}</p>
           </CardContent>
         </Card>
       </div>
@@ -176,6 +184,7 @@ export default function NewsletterEditor() {
             value={content}
             onChange={(e) => setContent(e.target.value)}
             className="min-h-[500px] font-mono"
+            placeholder="Loading newsletter content..."
           />
         </CardContent>
       </Card>
