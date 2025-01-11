@@ -1,4 +1,4 @@
-import type { Express } from "express";
+import type { Express, Request, Response, NextFunction } from "express";
 import { createServer, type Server } from "http";
 import { setupAuth } from "./auth";
 import { db } from "@db";
@@ -8,9 +8,10 @@ import { generateNewsletter, suggestNewsletterImprovements } from "./openai";
 import { sendWelcomeMessage, sendSMS } from "./twilio";
 import { processAndSaveMedia } from "./storage";
 import { nanoid } from 'nanoid';
+import * as crypto from 'node:crypto';
 
 // Middleware to check if user has privileged access
-const requirePrivilegedAccess = async (req: Express.Request, res: Express.Response, next: Express.NextFunction) => {
+const requirePrivilegedAccess = async (req: Request, res: Response, next: NextFunction) => {
   const user = req.user as User | undefined;
   if (!user?.id) {
     return res.status(401).send("Not authenticated");
@@ -34,11 +35,26 @@ export function registerRoutes(app: Express): Server {
     try {
       let baseQuery = {
         with: {
-          creator: true,
-          members: true,
-          updates: true,
-          newsletters: true,
-        },
+          creator: {
+            columns: {
+              id: true,
+              firstName: true,
+              lastName: true,
+              email: true
+            }
+          },
+          members: {
+            with: {
+              user: true
+            }
+          },
+          updates: {
+            with: {
+              user: true
+            }
+          },
+          newsletters: true
+        }
       };
 
       let whereClause = undefined;
@@ -49,19 +65,17 @@ export function registerRoutes(app: Express): Server {
       }
 
       // Construct the query
-      let query = db.query.loops.findMany({
+      const allLoops = await db.query.loops.findMany({
         ...baseQuery,
         ...(whereClause ? { where: whereClause } : {}),
         orderBy: sort === "recent" ? [desc(loops.createdAt)] : undefined,
       });
 
-      const allLoops = await query;
-
       // Transform data for the frontend
       const loopsWithStats = allLoops.map(loop => ({
         ...loop,
         memberCount: loop.members?.length || 0,
-        lastNewsletter: loop.newsletters?.[loop.newsletters.length - 1]?.sentAt || null,
+        lastNewsletter: loop.newsletters?.[0]?.sentAt || null,
         updateCount: loop.updates?.length || 0,
       }));
 
@@ -517,7 +531,8 @@ export function registerRoutes(app: Express): Server {
 
       if (!memberUser) {
         // Generate a random temporary password for new users
-        const tempPassword = randomBytes(16).toString('hex');
+        const tempPassword = crypto.randomBytes(16).toString('hex');
+        console.log('Creating new user with temp password');
 
         // Create new user if they don't exist
         [memberUser] = await db
@@ -994,13 +1009,13 @@ export function registerRoutes(app: Express): Server {
       const loopId = parseInt(req.params.id);
       const newsletterId = parseInt(req.params.newsletterId);
 
-      // Get the newsletter and loop details
+      // Get the newsletter and verify it exists
       const [newsletter] = await db.query.newsletters.findMany({
         where: and(
           eq(newsletters.id, newsletterId),
           eq(newsletters.loopId, loopId)
         ),
-        limit: 1,
+        limit: 1
       });
 
       if (!newsletter) {
@@ -1011,40 +1026,46 @@ export function registerRoutes(app: Express): Server {
       const members = await db.query.loopMembers.findMany({
         where: eq(loopMembers.loopId, loopId),
         with: {
-          user: true,
-        },
+          user: true
+        }
       });
 
-      // Send to all members
-      const sentTo = [];
+      const domain = req.get('host') || 'loopedin.replit.app';
+      const protocol = req.protocol || 'https';
+      const viewUrl = `${protocol}://${domain}/newsletters/${newsletter.urlId}`;
+
+      // Send SMS notifications to all loop members
+      const sentTo: string[] = [];
       for (const member of members) {
         if (!member.user?.phoneNumber) continue;
 
         try {
-          const viewUrl = `${process.env.APPURL}/newsletters/${newsletterId}`;
           await sendSMS(
             member.user.phoneNumber,
-            `New update from your loop! Read it here: ${viewUrl}`
+            `New update from your loop! View it here: ${viewUrl}`
           );
           sentTo.push(member.user.phoneNumber);
         } catch (error) {
-          console.error(`Failed to send to ${member.user.phoneNumber}:`, error);
+          console.error(`Failed to send SMS to ${member.user.phoneNumber}:`, error);
+          // Continue with other members even if one fails
         }
       }
 
       // Update newsletter status
-      await db
+      const [updatedNewsletter] = await db
         .update(newsletters)
         .set({
           status: 'sent',
-          sentAt: new Date(),
+          sentAt: new Date()
         })
-        .where(eq(newsletters.id, newsletterId));
+        .where(eq(newsletters.id, newsletterId))
+        .returning();
 
+      // Return success response with stats
       res.json({
-        success: true,
+        newsletter: updatedNewsletter,
         sentTo,
-        failedCount: members.length - sentTo.length,
+        failedCount: members.length - sentTo.length
       });
     } catch (error) {
       console.error("Error sending newsletter:", error);
@@ -1052,6 +1073,7 @@ export function registerRoutes(app: Express): Server {
     }
   });
 
-  const httpServer = createServer(app);
-  return httpServer;
+  // Create HTTP server and return it
+  const server = createServer(app);
+  return server;
 }
