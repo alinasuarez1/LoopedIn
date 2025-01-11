@@ -28,7 +28,7 @@ export async function generateNewsletter(
       const mediaHtml = u.mediaUrls?.map((url, index) => `
         <figure class="my-6">
           <img src="${url}" 
-               alt="Update media ${index + 1}" 
+               alt="Update from ${u.userName} - Media ${index + 1}" 
                class="rounded-lg shadow-md max-w-full h-auto mx-auto"
                loading="lazy" />
         </figure>
@@ -48,7 +48,7 @@ export async function generateNewsletter(
     const customHeader = options?.customHeader || '';
     const customClosing = options?.customClosing || '';
 
-    const prompt = `Generate a comprehensive newsletter for the group "${loopName}" that includes all member updates. 
+    const prompt = `Generate a comprehensive newsletter for the group "${loopName}" that includes ALL member updates. 
 The newsletter should have a ${vibeDescription} tone.
 
 ${customHeader ? `Use this custom header: ${customHeader}\n` : ''}
@@ -57,36 +57,33 @@ Here are all the updates from members:
 
 ${updatesList}
 
-Please format this as a well-structured newsletter that includes:
+Format this as a newsletter that MUST include:
 
-# [Engaging Title for ${loopName}]
-
-## 🌟 Highlights
-[Brief overview highlighting key themes or patterns from the updates]
-
-## 📝 Member Updates
-[Include all member updates, maintaining their original content while organizing them in an engaging way. Do not summarize or omit any updates - present each one in full.]
-
-## 🎯 Looking Forward
-[Brief forward-looking section that builds anticipation for the next update]
+1. An engaging title
+2. A brief highlights section identifying key themes (2-3 paragraphs)
+3. ALL member updates in their entirety - this is crucial:
+   - Present each update in full
+   - Do not summarize or omit any updates
+   - Include all images exactly as provided
+   - Maintain the original context and meaning
+4. A brief forward-looking section
 
 ${customClosing ? `\n${customClosing}` : ''}
 
 Important guidelines:
-- Use HTML tags for proper formatting (<h1>, <h2>, etc.)
-- Keep section headers clear and consistent
-- Maintain a friendly, ${vibeDescription} tone throughout
-- Preserve all existing HTML content exactly as provided, especially image tags
-- Add emoji icons to section headers for visual appeal
+- Use semantic HTML tags (<h1>, <h2>, etc.)
+- Keep the structure clear and consistent
+- Maintain a ${vibeDescription} tone throughout
+- Preserve all HTML content exactly as provided, especially image tags
+- Add emoji icons to section headers
 - Break up text into digestible paragraphs
-- Include ALL member updates in their entirety - do not skip or heavily summarize any updates
-- Organize updates in a way that flows naturally but ensures all content is preserved`;
+- Do not skip or heavily summarize any updates - include everything`;
 
     const completion = await openai.chat.completions.create({
       model: "gpt-4-turbo-preview",
       messages: [{ role: "user", content: prompt }],
       temperature: 0.7,
-      max_tokens: 2000,
+      max_tokens: 4000,
     });
 
     const newsletterContent = completion.choices[0].message.content;
@@ -95,9 +92,9 @@ Important guidelines:
       throw new Error("Failed to generate newsletter content");
     }
 
-    // Add metadata and formatting with improved image display
+    // Add metadata and formatting
     return `
-<div class="newsletter-content">
+<div class="newsletter-content max-w-4xl mx-auto">
   <header class="text-center mb-8">
     <h1 class="text-4xl font-bold mb-2">${loopName}</h1>
     <div class="text-sm text-gray-500">
