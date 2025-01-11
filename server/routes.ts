@@ -4,7 +4,7 @@ import { setupAuth } from "./auth";
 import { db } from "@db";
 import { loops, loopMembers, updates, newsletters, users, type User } from "@db/schema";
 import { and, eq, desc, ilike } from "drizzle-orm";
-import { generateNewsletter, suggestNewsletterImprovements } from "./anthropic";
+import { generateNewsletter, suggestNewsletterImprovements } from "./openai";
 import { sendWelcomeMessage, sendSMS } from "./twilio";
 import { processAndSaveMedia } from "./storage";
 import { nanoid } from 'nanoid';
@@ -708,7 +708,7 @@ export function registerRoutes(app: Express): Server {
       return res.status(400).send("No updates available for newsletter generation");
     }
 
-    // Generate newsletter content using Anthropic
+    // Generate newsletter content using OpenAI
     const updatesForAI = loop.updates.map(update => {
       const user = update.user;
       if (!user) {
@@ -769,7 +769,7 @@ export function registerRoutes(app: Express): Server {
         return res.status(400).send("No updates available for newsletter generation");
       }
 
-      // Generate newsletter content using Anthropic
+      // Generate newsletter content using OpenAI
       const updatesForAI = loop.updates.map(update => {
         const user = update.user;
         if (!user) {
