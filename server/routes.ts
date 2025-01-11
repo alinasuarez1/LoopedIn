@@ -3,12 +3,8 @@ import { createServer, type Server } from "http";
 import { setupAuth } from "./auth";
 import { db } from "@db";
 import { loops, loopMembers, updates, newsletters, users, type User } from "@db/schema";
-import { and, eq, desc, ilike } from "drizzle-orm";
-import { generateNewsletter, suggestNewsletterImprovements } from "./openai";
-import { sendWelcomeMessage, sendSMS } from "./twilio";
-import { processAndSaveMedia } from "./storage";
-import { nanoid } from 'nanoid';
-import { randomBytes } from 'node:crypto';
+import { and, eq } from "drizzle-orm";
+import { sendSMS } from "./twilio";
 
 // Middleware to check if user has privileged access
 const requirePrivilegedAccess = async (req: Request, res: Response, next: NextFunction) => {
@@ -1037,7 +1033,8 @@ export function registerRoutes(app: Express): Server {
         return res.status(404).send("Newsletter not found");
       }
 
-      // If requested, get improvement suggestions      if (req.query.suggest === 'true') {
+      // If requested, get improvement suggestions
+      if (req.query.suggest === 'true') {
         const loop = await db.query.loops.findFirst({
           where: eq(loops.id, parseInt(req.params.id)),
         });
@@ -1057,93 +1054,115 @@ export function registerRoutes(app: Express): Server {
 
   // Approve and send newsletter
   app.post("/api/loops/:id/newsletters/:newsletterId/send", requirePrivilegedAccess, async (req: Request, res: Response) => {
-    const loopId = parseInt(req.params.id);
-    const newsletterId = parseInt(req.params.newsletterId);
-
     try {
-      // Get the newsletter and its associated loop with members
-      const newsletter = await db.query.newsletters.findFirst({
-        where: and(
-          eq(newsletters.id, newsletterId),
-          eq(newsletters.loopId, loopId)
-        ),
-        with: {
-          loop: {
-            with: {
-              members: {
-                with: {
-                  user: true
-                }
-              }
-            }
-          }
+      // Simple query to get phone numbers
+      const members = await db
+        .select({
+          phoneNumber: users.phoneNumber,
+        })
+        .from(loopMembers)
+        .innerJoin(users, eq(loopMembers.userId, users.id))
+        .where(eq(loopMembers.loopId, parseInt(req.params.id)));
+
+      if (!members.length) {
+        return res.status(400).json({ error: "No members found" });
+      }
+
+      const url = `https://${req.get('host') || 'loopedin.replit.app'}/newsletters/${req.params.newsletterId}`;
+      let sentCount = 0;
+
+      // Send SMS to each member
+      for (const member of members) {
+        if (!member.phoneNumber) continue;
+
+        try {
+          await sendSMS(member.phoneNumber, `New update! Read it here: ${url}`);
+          sentCount++;
+        } catch (error) {
+          console.error('SMS send failed:', error);
         }
-      });
+      }
+
+      res.json({ success: true, sent: sentCount });
+    } catch (error) {
+      res.status(500).json({ error: "Failed to send newsletter" });
+    }
+  });
+
+  // Add a new route to handle newsletter sending
+  app.post("/api/newsletters/:id/send", requirePrivilegedAccess, async (req: Request, res: Response) => {
+    try {
+      console.log('Starting newsletter send process...');
+      const newsletterId = parseInt(req.params.id);
+
+      if (isNaN(newsletterId)) {
+        return res.status(400).json({ error: "Invalid newsletter ID" });
+      }
+
+      // Get newsletter details
+      const [newsletter] = await db
+        .select()
+        .from(newsletters)
+        .where(eq(newsletters.id, newsletterId))
+        .limit(1);
 
       if (!newsletter) {
-        return res.status(404).send("Newsletter not found");
+        console.log('Newsletter not found:', newsletterId);
+        return res.status(404).json({ error: "Newsletter not found" });
       }
 
-      if (!newsletter.loop) {
-        return res.status(404).send("Associated loop not found");
-      }
+      console.log('Found newsletter:', newsletter.id);
 
-      if (!newsletter.loop.members?.length) {
-        return res.status(400).send("No members to send newsletter to");
-      }
-
-      // Mark newsletter as sent
-      const [updatedNewsletter] = await db
-        .update(newsletters)
-        .set({
-          status: 'sent',
-          sentAt: new Date(),
+      // Get member phone numbers for this loop
+      const members = await db
+        .select({
+          phoneNumber: users.phoneNumber,
         })
-        .where(eq(newsletters.id, newsletterId))
-        .returning();
+        .from(loopMembers)
+        .innerJoin(users, eq(users.id, loopMembers.userId))
+        .where(eq(loopMembers.loopId, newsletter.loopId));
 
-      if (!updatedNewsletter) {
-        return res.status(500).send("Failed to update newsletter status");
+      console.log('Found members:', members.length);
+
+      if (!members.length) {
+        return res.status(400).json({ error: "No members found" });
       }
 
-      // Prepare newsletter URL
-      const domain = req.get('host') || 'loopedin.replit.app';
-      const protocol = req.protocol || 'https';
-      const newsletterUrl = `${protocol}://${domain}/newsletters/${newsletter.urlId}`;
+      // Create newsletter URL
+      const baseUrl = req.get('host') || 'loopedin.replit.app';
+      const url = `https://${baseUrl}/newsletters/${newsletter.urlId}`;
 
-      // Send SMS notifications to all members
-      const successfulSends: string[] = [];
-      const failedSends: string[] = [];
+      console.log('Newsletter URL:', url);
 
-      await Promise.all(
-        newsletter.loop.members.map(async (member) => {
-          if (!member.user?.phoneNumber) return;
+      // Send SMS to each member
+      let sent = 0;
+      for (const member of members) {
+        if (!member.phoneNumber) continue;
 
-          try {
-            await sendSMS(
-              member.user.phoneNumber,
-              `New update from ${newsletter.loop!.name}! Check it out here: ${newsletterUrl}`
-            );
-            successfulSends.push(member.user.phoneNumber);
-          } catch (error) {
-            console.error(`Failed to send SMS to ${member.user.phoneNumber}:`, error);
-            failedSends.push(member.user.phoneNumber);
-          }
-        })
-      );
-
-      return res.json({
-        message: "Newsletter sent successfully",
-        newsletter: updatedNewsletter,
-        stats: {
-          totalMembers: newsletter.loop.members.length,
-          successfulSends: successfulSends.length,
-          failedSends: failedSends.length
+        try {
+          await sendSMS(
+            member.phoneNumber,
+            `New update from your loop! Read it here: ${url}`
+          );
+          sent++;
+          console.log('SMS sent successfully to:', member.phoneNumber);
+        } catch (err) {
+          console.error('Failed to send SMS:', err);
         }
+      }
+
+      console.log('Finished sending. Success count:', sent);
+
+      // Return success response
+      res.json({ 
+        success: true, 
+        sent,
+        total: members.length
       });
-    } catch (error) {
-      console.error("Error sending newsletter:", error);
-      return res.status(500).send("Failed to send newsletter");
+
+    } catch (err) {
+      console.error('Newsletter send error:', err);
+      res.status(500).json({ error: "Failed to send newsletter" });
     }
   });
 
