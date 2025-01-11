@@ -877,7 +877,7 @@ export function registerRoutes(app: Express): Server {
         return res.status(404).send("Newsletter not found");
       }
 
-      // Render the newsletter content
+      // Render the newsletter content with improved image handling
       res.send(`
         <!DOCTYPE html>
         <html>
@@ -892,11 +892,23 @@ export function registerRoutes(app: Express): Server {
               margin: 0 auto;
               padding: 2rem;
             }
+            .newsletter-content img {
+              max-width: 100%;
+              height: auto;
+              margin: 1.5rem auto;
+              border-radius: 0.5rem;
+              box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+              display: block;
+            }
+            .newsletter-content figure {
+              margin: 2rem 0;
+            }
             .newsletter-content h1 {
               font-size: 2.25rem;
               font-weight: bold;
               margin-bottom: 1.5rem;
               color: #1a1a1a;
+              text-align: center;
             }
             .newsletter-content h2 {
               font-size: 1.5rem;
@@ -916,13 +928,6 @@ export function registerRoutes(app: Express): Server {
               margin-bottom: 1rem;
               line-height: 1.6;
             }
-            .newsletter-content img {
-              max-width: 100%;
-              height: auto;
-              border-radius: 0.5rem;
-              margin: 1rem 0;
-              box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
-            }
             .newsletter-content hr {
               margin: 2rem 0;
               border: 0;
@@ -937,14 +942,22 @@ export function registerRoutes(app: Express): Server {
             .newsletter-content li {
               margin-bottom: 0.5rem;
             }
+            .update-block {
+              border: 1px solid #e2e8f0;
+              border-radius: 0.5rem;
+              padding: 1.5rem;
+              margin-bottom: 2rem;
+              background-color: #f8fafc;
+            }
+            .update-content {
+              margin: 1rem 0;
+            }
           </style>
         </head>
         <body class="bg-gray-50 min-h-screen py-8">
           <div class="max-w-4xl mx-auto px-4">
             <article class="bg-white rounded-xl shadow-lg overflow-hidden">
-              <div class="newsletter-content">
-                ${newsletter.content}
-              </div>
+              ${newsletter.content}
             </article>
           </div>
         </body>
@@ -1023,7 +1036,7 @@ export function registerRoutes(app: Express): Server {
   // Approve and send newsletter
   app.post("/api/loops/:id/newsletters/:newsletterId/send", requirePrivilegedAccess, async (req, res) => {
     try {
-      const loopId = parseInt(req.params.id);
+            const loopId = parseInt(req.params.id);
       const newsletterId = parseInt(req.params.newsletterId);
 
       // Get the newsletter and verify it exists
