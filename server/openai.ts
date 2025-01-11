@@ -23,19 +23,26 @@ export async function generateNewsletter(
   options?: NewsletterOptions
 ): Promise<string> {
   try {
+    // Process updates with images first
     const updatesList = updates.map(u => {
-      const mediaHtml = u.mediaUrls?.map((url, index) => 
-        `<div class="my-4">
-           <img src="${url}" alt="Update media ${index + 1}" class="rounded-lg shadow-md max-w-full h-auto" />
-         </div>`
-      ).join('\n') || '';
+      const mediaHtml = u.mediaUrls?.map((url, index) => `
+        <figure class="my-6">
+          <img src="${url}" 
+               alt="Update media ${index + 1}" 
+               class="rounded-lg shadow-md max-w-full h-auto mx-auto"
+               loading="lazy" />
+        </figure>
+      `).join('\n') || '';
 
-      return `### Update from ${u.userName}
-
-${u.content}
-
-${mediaHtml}`;
-    }).join('\n\n---\n\n');
+      return `
+        <div class="update-block mb-8">
+          <h3 class="text-xl font-semibold mb-3">Update from ${u.userName}</h3>
+          <div class="update-content">
+            ${u.content.split('\n').map(p => `<p class="mb-4">${p}</p>`).join('\n')}
+          </div>
+          ${mediaHtml}
+        </div>`;
+    }).join('\n\n');
 
     const vibeDescription = vibe.join(', ');
     const customHeader = options?.customHeader || '';
@@ -69,7 +76,7 @@ Make sure to:
 - Use HTML tags for proper formatting (<h1>, <h2>, etc.)
 - Keep section headers clear and consistent
 - Maintain a friendly, ${vibeDescription} tone throughout
-- Preserve all image tags exactly as provided
+- Preserve all existing HTML content exactly as provided
 - Add emoji icons to section headers for visual appeal
 - Break up text into digestible paragraphs`;
 
@@ -86,7 +93,7 @@ Make sure to:
       throw new Error("Failed to generate newsletter content");
     }
 
-    // Add metadata and formatting
+    // Add metadata and formatting with improved image display
     return `
 <div class="newsletter-content">
   <header class="text-center mb-8">
@@ -96,7 +103,9 @@ Make sure to:
     </div>
   </header>
 
-  ${newsletterContent}
+  <article class="prose prose-lg mx-auto">
+    ${newsletterContent}
+  </article>
 
   <footer class="mt-8 pt-4 border-t border-gray-200 text-center text-sm text-gray-500">
     <p>This newsletter was generated with ❤️ by Loop</p>
@@ -112,7 +121,7 @@ Make sure to:
 export async function analyzeUpdatesForHighlights(updates: string[]): Promise<string[]> {
   try {
     const prompt = `Given these updates from a group, identify 3-5 key themes or highlights that would be interesting to feature in a newsletter:
-    
+
 ${updates.join('\n')}
 
 Please output only the highlights, one per line, focusing on:
