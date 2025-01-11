@@ -50,9 +50,9 @@ export const updates = pgTable("updates", {
 
 export const newsletters = pgTable("newsletters", {
   id: serial("id").primaryKey(),
-  loopId: integer("loop_id").references(() => loops.id),
+  loopId: integer("loop_id").notNull().references(() => loops.id),
   content: text("content").notNull(),
-  status: text("status").notNull().default('draft'), // 'draft' or 'sent'
+  status: text("status").notNull().default('draft'),
   urlId: text("url_id").notNull().unique(),
   sentAt: timestamp("sent_at"),
   createdAt: timestamp("created_at").defaultNow(),
