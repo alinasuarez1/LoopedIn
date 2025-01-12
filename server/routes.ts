@@ -768,27 +768,27 @@ export function registerRoutes(app: Express): Server {
 
     const loopId = parseInt(req.params.id);
 
-    // Get all updates for this loop
-    const loop = await db.query.loops.findFirst({
-      where: eq(loops.id, loopId),
-      with: {
-        updates: {
-          with: {
-            user: true,
+    try {
+      // Get all updates for this loop
+      const loop = await db.query.loops.findFirst({
+        where: eq(loops.id, loopId),
+        with: {
+          updates: {
+            with: {
+              user: true,
+            },
           },
         },
-      },
-    });
+      });
 
-    if (!loop) {
-      return res.status(404).send("Loop not found");
-    }
+      if (!loop) {
+        return res.status(404).send("Loop not found");
+      }
 
-    if (!loop.updates.length) {
-      return res.status(400).send("No updates available for newsletter generation");
-    }
+      if (!loop.updates.length) {
+        return res.status(400).send("No updates available for newsletter generation");
+      }
 
-    try {
       // Generate newsletter content using OpenAI
       const updatesForAI = loop.updates.map(update => {
         const user = update.user;
@@ -811,7 +811,7 @@ export function registerRoutes(app: Express): Server {
       // Generate a unique URL ID
       const urlId = nanoid(10);
 
-      // Insert the newsletter
+      // Insert the newsletter - let PostgreSQL handle timestamps
       const [newsletter] = await db
         .insert(newsletters)
         .values({
@@ -836,7 +836,7 @@ export function registerRoutes(app: Express): Server {
     }
   });
 
-  // Update the newsletter generation route to properly handle timestamps
+  // app.post("/api/loops/:id/newsletters/generate", requirePrivilegedAccess, async (req, res) => { ... });
   app.post("/api/loops/:id/newsletters/generate", requirePrivilegedAccess, async (req, res) => {
     const user = req.user as User | undefined;
     if (!user?.id) {
@@ -1058,8 +1058,7 @@ export function registerRoutes(app: Express): Server {
             <article class="bg-white rounded-xl shadow-lg overflow-hidden">
               ${newsletter.content}
             </article>
-          </div>
-        </body>
+          </div>          </div></body>
         </html>
       `);
     } catch (error) {

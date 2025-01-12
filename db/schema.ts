@@ -56,9 +56,9 @@ export const newsletters = pgTable("newsletters", {
   content: text("content").notNull(),
   status: text("status", { enum: ['draft', 'finalized', 'sent'] }).$type<NewsletterStatus>().notNull().default('draft'),
   urlId: text("url_id").notNull().unique(),
-  sentAt: timestamp("sent_at"),
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+  sentAt: timestamp("sent_at", { precision: 3, mode: "date" }),
+  createdAt: timestamp("created_at", { precision: 3, mode: "date" }).notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { precision: 3, mode: "date" }).notNull().defaultNow(),
 });
 
 // Define relations
