@@ -808,20 +808,18 @@ export function registerRoutes(app: Express): Server {
         loop.vibe
       );
 
-      // Generate a unique URL ID for the newsletter
+      // Generate a unique URL ID
       const urlId = nanoid(10);
 
-      // Create newsletter with all required fields
-      const newsletterData: Omit<InsertNewsletter, 'id' | 'createdAt' | 'updatedAt' | 'sentAt'> = {
-        loopId,
-        content: newsletterContent,
-        status: 'draft',
-        urlId,
-      };
-
+      // Insert the newsletter
       const [newsletter] = await db
         .insert(newsletters)
-        .values(newsletterData)
+        .values({
+          loopId,
+          content: newsletterContent,
+          status: 'draft',
+          urlId,
+        })
         .returning();
 
       if (!newsletter) {
@@ -909,8 +907,7 @@ export function registerRoutes(app: Express): Server {
       // Generate a unique URL ID
       const urlId = nanoid(10);
 
-      // Save the draft newsletter with explicit timestamps
-      const now = new Date();
+      // Insert the newsletter with proper field names and let the database handle timestamps
       const [newsletter] = await db
         .insert(newsletters)
         .values({
@@ -918,8 +915,6 @@ export function registerRoutes(app: Express): Server {
           content: newsletterContent,
           status: 'draft',
           urlId,
-          createdAt: now,
-          updatedAt: now,
         })
         .returning();
 
@@ -1054,10 +1049,8 @@ export function registerRoutes(app: Express): Server {
               border-radius: 0.5rem;
               padding: 1.5rem;
               margin-bottom: 2rem;
-              background-color: #f8fafc;
-            }
-            .update-content {
-              margin: 1rem 0;
+              background-color: #f8fafc;            }
+            .updatecontent {              margin: 1rem 0;
             }
           </style>
         </head>
@@ -1233,8 +1226,6 @@ export function registerRoutes(app: Express): Server {
       res.status(500).send("Failed to send newsletter");
     }
   });
-
-  // Update the finalize endpoint (removed duplicate)
 
   // Create HTTP server and return it
   const httpServer = createServer(app);
