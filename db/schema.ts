@@ -61,6 +61,7 @@ export const newsletters = pgTable("newsletters", {
   updatedAt: timestamp("updated_at").defaultNow(),
 });
 
+// Define relations
 export const loopsRelations = relations(loops, ({ one, many }) => ({
   creator: one(users, {
     fields: [loops.creatorId],
@@ -100,6 +101,7 @@ export const newslettersRelations = relations(newsletters, ({ one }) => ({
   }),
 }));
 
+// Create Zod schemas for validation
 export const insertUserSchema = createInsertSchema(users);
 export const selectUserSchema = createSelectSchema(users);
 export const insertLoopSchema = createInsertSchema(loops);
@@ -111,6 +113,7 @@ export const selectUpdateSchema = createSelectSchema(updates);
 export const insertNewsletterSchema = createInsertSchema(newsletters);
 export const selectNewsletterSchema = createSelectSchema(newsletters);
 
+// Export types
 export type User = typeof users.$inferSelect;
 export type InsertUser = typeof users.$inferInsert;
 export type Loop = typeof loops.$inferSelect;
