@@ -12,6 +12,12 @@ import { Textarea } from "@/components/ui/textarea";
 import { Loader2, Send, Eye, CheckCircle } from "lucide-react";
 import { useState, useEffect } from "react";
 import { useToast } from "@/hooks/use-toast";
+import { format } from "date-fns";
+
+// Helper function to check if a date is valid
+const isValidDate = (date: Date): boolean => {
+  return date instanceof Date && !isNaN(date.getTime());
+};
 
 interface Newsletter {
   id: number;
@@ -19,6 +25,8 @@ interface Newsletter {
   status: 'draft' | 'finalized' | 'sent';
   urlId: string;
   sentAt: string | null;
+  createdAt: string;
+  updatedAt: string;
   loopId: number;
 }
 
@@ -38,6 +46,24 @@ export default function NewsletterEditor() {
       setContent(newsletter.content);
     }
   }, [newsletter]);
+
+  // Format date helper - robust date formatting with validation
+  const formatDate = (dateStr: string | null) => {
+    if (!dateStr) return 'Not yet';
+    try {
+      const date = new Date(dateStr);
+
+      if (!isValidDate(date)) {
+        console.error('Invalid date detected:', dateStr);
+        return 'Date not available';
+      }
+
+      return format(date, 'PPP'); // Using PPP for more detailed format
+    } catch (error) {
+      console.error('Error formatting date:', error);
+      return 'Date not available';
+    }
+  };
 
   // Update newsletter content
   const updateMutation = useMutation({
@@ -162,6 +188,11 @@ export default function NewsletterEditor() {
           <CardDescription>
             Make changes to the newsletter before sending it to loop members
           </CardDescription>
+          <div className="text-sm text-muted-foreground space-y-1">
+            <p>Created on {formatDate(newsletter?.createdAt)}</p>
+            <p>Last updated on {formatDate(newsletter?.updatedAt)}</p>
+            {newsletter?.sentAt && <p>Sent on {formatDate(newsletter?.sentAt)}</p>}
+          </div>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="flex gap-4 mb-4">
