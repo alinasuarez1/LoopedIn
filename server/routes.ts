@@ -1024,84 +1024,117 @@ export function registerRoutes(app: Express): Server {
     }
   });
 
-  app.post("/api/loops/:id/newsletters/:newsletterId/send", requirePrivilegedAccess, async (req, res) => {
-    try {
-      const loopId = parseInt(req.params.id);
-      const newsletterId = parseInt(reqparams.newsletterId);
+  // Update the send endpoint
+  app.post("/api/loops/:id/newsletters/:newsletterId/send", requirePrivilegedAccess, async (req, res) => {  try {
+    const loopId = parseInt(req.params.id);
+    const newsletterId = parseInt(req.params.newsletterId);
 
-      // Get the newsletter and verify it exists
-      const [newsletter] = await db
-        .select()
-        .from(newsletters)
-        .where(
-          and(
-            eq(newsletters.id, newsletterId),
-            eq(newsletters.loopId, loopId)
-          )
-        )
-        .limit(1);
+    // Get the newsletter and verify it exists
+    const [newsletter] = await db.query.newsletters.findMany({
+      where: and(
+        eq(newsletters.id, newsletterId),
+        eq(newsletters.loopId, loopId),
+        eq(newsletters.status, 'finalized')
+      ),
+      limit: 1,
+    });
 
-      if (!newsletter) {
-        return res.status(404).send("Newsletter not found");
-      }
-
-      // Update the newsletter status to 'sent'
-      const [updatedNewsletter] = await db
-        .update(newsletters)
-        .set({
-          status: 'sent',
-          sentAt: new Date(),
-        })
-        .where(eq(newsletters.id, newsletterId))
-        .returning();
-
-      res.json(updatedNewsletter);
-    } catch (error) {
-      console.error("Error sending newsletter:", error);
-      res.status(500).send("Failed to send newsletter");
+    if (!newsletter) {
+      return res.status(404).send("Newsletter not found or not finalized");
     }
-  });
 
-  app.post("/api/loops/:id/newsletters/:newsletterId/finalize", requirePrivilegedAccess, async (req, res) => {
-    try {
-      const loopId = parseInt(req.params.id);
-      const newsletterId = parseInt(req.params.newsletterId);
+    // Get loop details for SMS
+    const [loop] = await db.query.loops.findMany({
+      where: eq(loops.id, loopId),
+      with: {
+        members: {
+          with: {
+            user: true,
+          },
+        },
+      },
+      limit: 1,
+    });
 
-      // Get the newsletter and verify it exists and is in draft status
-      const [newsletter] = await db
-        .select()
-        .from(newsletters)
-        .where(
-          and(
-            eq(newsletters.id, newsletterId),
-            eq(newsletters.loopId, loopId),
-            eq(newsletters.status, 'draft')
-          )
-        )
-        .limit(1);
-
-      if (!newsletter) {
-        return res.status(404).send("Newsletter not found or not in draft status");
-      }
-
-      // Update the newsletter status to finalized
-      if (newsletter) {
-        const [updatedNewsletter] = await db
-          .update(newsletters)
-          .set({
-            status: 'finalized' as const,
-            updatedAt: new Date(),
-          })
-          .where(eq(newsletters.id, newsletter.id))
-          .returning();
-      }
-
-      res.json(newsletter);
-    } catch (error) {
-      console.error("Error finalizing newsletter:", error);
-      res.status(500).send("Failed to finalize newsletter");
+    if (!loop) {
+      return res.status(404).send("Loop not found");
     }
-  });
+
+    // Update newsletter status and send time
+    const [updatedNewsletter] = await db
+      .update(newsletters)
+      .set({
+        status: 'sent',
+        sentAt: new Date(),
+      })
+      .where(eq(newsletters.id, newsletterId))
+      .returning();
+
+    // Send SMS to all loop members
+    const newsletterUrl = `${process.env.BASE_URL || ''}/newsletters/${newsletter.urlId}`;
+    const smsPromises = loop.members.map(async (member) => {
+      if (!member.user?.phoneNumber) return;
+
+      try {
+        await sendSMS(
+          member.user.phoneNumber,
+          `New update from ${loop.name}! Read it here: ${newsletterUrl}`
+        );
+      } catch (error) {
+        console.error(`Failed to send SMS to ${member.user.phoneNumber}:`, error);
+      }
+    });
+
+    // Wait for all SMS to be sent (or fail)
+    await Promise.all(smsPromises);
+
+    res.json(updatedNewsletter);
+  } catch (error) {
+    console.error("Error sending newsletter:", error);
+    res.status(500).send("Failed to send newsletter");
+  }
+});
+
+// Update the finalize endpoint
+app.post("/api/loops/:id/newsletters/:newsletterId/finalize", requirePrivilegedAccess, async (req, res) => {
+  try {
+    const loopId = parseInt(req.params.id);
+    const newsletterId = parseInt(req.params.newsletterId);
+
+    // Get the newsletter and verify it exists
+    const [newsletter] = await db.query.newsletters.findMany({
+      where: and(
+        eq(newsletters.id, newsletterId),
+        eq(newsletters.loopId, loopId),
+        eq(newsletters.status, 'draft')
+      ),
+      limit: 1,
+    });
+
+    if (!newsletter) {
+      return res.status(404).send("Newsletter not found or not in draft status");
+    }
+
+    // Update the newsletter status to finalized
+    const [updatedNewsletter] = await db
+      .update(newsletters)
+      .set({
+        status: 'finalized' as const,
+        updatedAt: new Date(),
+      })
+      .where(eq(newsletters.id, newsletterId))
+      .returning();
+
+    if (!updatedNewsletter) {
+      throw new Error("Failed to update newsletter status");
+    }
+
+    res.json(updatedNewsletter);
+  } catch (error) {
+    console.error("Error finalizing newsletter:", error);
+    res.status(500).send("Failed to finalize newsletter");
+  }
+});
 
   // Create HTTP server and return it
   const httpServer = createServer(app);
