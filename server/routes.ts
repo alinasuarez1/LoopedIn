@@ -98,7 +98,16 @@ export function registerRoutes(app: Express): Server {
           orderBy: desc(updates.createdAt),
         },
         newsletters: {
-          orderBy: desc(newsletters.sentAt),
+          columns: {
+            id: true,
+            content: true,
+            status: true,
+            urlId: true,
+            sentAt: true,
+            createdAt: true,
+            updatedAt: true,
+          },
+          orderBy: desc(newsletters.createdAt),
         },
       },
       limit: 1,
@@ -1223,6 +1232,62 @@ export function registerRoutes(app: Express): Server {
     } catch (error) {
       console.error("Error sending newsletter:", error);
       res.status(500).send("Failed to send newsletter");
+    }
+  });
+
+  // Add PUT endpoint for updating newsletter content
+  app.put("/api/loops/:id/newsletters/:newsletterId", requirePrivilegedAccess, async (req, res) => {
+    const user = req.user as User | undefined;
+    if (!user?.id) {
+      return res.status(401).send("Not authenticated");
+    }
+
+    try {
+      const { content } = req.body;
+      const loopId = parseInt(req.params.id);
+      const newsletterId = parseInt(req.params.newsletterId);
+
+      // Verify the newsletter exists and belongs to the specified loop
+      const [existingNewsletter] = await db.query.newsletters.findMany({
+        where: and(
+          eq(newsletters.id, newsletterId),
+          eq(newsletters.loopId, loopId)
+        ),
+        limit: 1,
+      });
+
+      if (!existingNewsletter) {
+        return res.status(404).send("Newsletter not found");
+      }
+
+      // Only allow updating draft newsletters
+      if (existingNewsletter.status !== 'draft') {
+        return res.status(400).send("Can only edit draft newsletters");
+      }
+
+      // Update the newsletter
+      const [updatedNewsletter] = await db
+        .update(newsletters)
+        .set({
+          content,
+          updatedAt: new Date(),
+        })
+        .where(
+          and(
+            eq(newsletters.id, newsletterId),
+            eq(newsletters.loopId, loopId)
+          )
+        )
+        .returning();
+
+      if (!updatedNewsletter) {
+        throw new Error("Failed to update newsletter");
+      }
+
+      res.json(updatedNewsletter);
+    } catch (error) {
+      console.error("Error updating newsletter:", error);
+      res.status(500).send("Failed to update newsletter");
     }
   });
 

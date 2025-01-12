@@ -18,8 +18,9 @@ import {
 } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { Loader2, ExternalLink } from "lucide-react";
-import { format } from "date-fns";
 import { useToast } from "@/hooks/use-toast";
+import { formatDate, formatDateTime } from "@/lib/date";
+import type { Newsletter } from "@/types/newsletter";
 
 interface LoopDetails {
   id: number;
@@ -56,13 +57,7 @@ interface LoopDetails {
       lastName: string;
     };
   }>;
-  newsletters: Array<{
-    id: number;
-    content: string;
-    sentAt: string;
-    urlId: string;
-    status: 'draft' | 'finalized' | 'sent';
-  }>;
+  newsletters: Newsletter[];
 }
 
 export default function AdminLoopDetails() {
@@ -135,12 +130,8 @@ export default function AdminLoopDetails() {
     );
   }
 
-  const handleGenerateNewsletter = () => {
-    generateNewsletterMutation.mutate();
-  };
-
   // Filter newsletters based on status
-  const visibleNewsletters = loop.newsletters.filter(newsletter => 
+  const visibleNewsletters = loop.newsletters.filter(newsletter =>
     window.location.pathname.startsWith('/admin/') ? true : newsletter.status !== 'draft'
   );
 
@@ -150,7 +141,7 @@ export default function AdminLoopDetails() {
         <h1 className="text-3xl font-bold">{loop.name}</h1>
         {window.location.pathname.startsWith('/admin/') && (
           <Button
-            onClick={handleGenerateNewsletter}
+            onClick={() => generateNewsletterMutation.mutate()}
             disabled={generateNewsletterMutation.isPending}
           >
             {generateNewsletterMutation.isPending ? (
@@ -241,7 +232,7 @@ export default function AdminLoopDetails() {
                     {update.user.firstName} {update.user.lastName}
                   </p>
                   <time className="text-sm text-muted-foreground">
-                    {format(new Date(update.createdAt), "PPp")}
+                    {formatDateTime(update.createdAt)}
                   </time>
                 </div>
               </CardHeader>
@@ -285,7 +276,9 @@ export default function AdminLoopDetails() {
               >
                 <div className="flex flex-col">
                   <time className="text-sm text-muted-foreground">
-                    {format(new Date(newsletter.sentAt), "PPp")}
+                    {formatDateTime(newsletter.status === 'sent' && newsletter.sentAt 
+                      ? newsletter.sentAt 
+                      : newsletter.createdAt)}
                   </time>
                   {window.location.pathname.startsWith('/admin/') && (
                     <span className="text-xs text-muted-foreground mt-1">
