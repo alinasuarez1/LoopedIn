@@ -12,23 +12,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { Loader2, Send, Eye, CheckCircle } from "lucide-react";
 import { useState, useEffect } from "react";
 import { useToast } from "@/hooks/use-toast";
-import { format } from "date-fns";
-
-// Helper function to check if a date is valid
-const isValidDate = (date: Date): boolean => {
-  return date instanceof Date && !isNaN(date.getTime());
-};
-
-interface Newsletter {
-  id: number;
-  content: string;
-  status: 'draft' | 'finalized' | 'sent';
-  urlId: string;
-  sentAt: string | null;
-  createdAt: string;
-  updatedAt: string;
-  loopId: number;
-}
+import { formatDateTime } from "@/lib/date";
+import { type Newsletter } from "@/types/newsletter";
 
 export default function NewsletterEditor() {
   const { loopId, newsletterId } = useParams<{ loopId: string, newsletterId: string }>();
@@ -36,34 +21,16 @@ export default function NewsletterEditor() {
   const [content, setContent] = useState("");
 
   // Fetch newsletter data
-  const { data: newsletter, isLoading, error } = useQuery<Newsletter>({
-    queryKey: [`/api/loops/${loopId}/newsletters/${newsletterId}/preview`],
+  const { data: newsletter, isLoading, error, refetch } = useQuery<Newsletter>({
+    queryKey: [`/api/loops/${loopId}/newsletters/${newsletterId}`],
+    retry: false,
   });
 
-  // Set content when newsletter data is loaded
   useEffect(() => {
     if (newsletter?.content) {
       setContent(newsletter.content);
     }
   }, [newsletter]);
-
-  // Format date helper - robust date formatting with validation
-  const formatDate = (dateStr: string | null) => {
-    if (!dateStr) return 'Not yet';
-    try {
-      const date = new Date(dateStr);
-
-      if (!isValidDate(date)) {
-        console.error('Invalid date detected:', dateStr);
-        return 'Date not available';
-      }
-
-      return format(date, 'PPP'); // Using PPP for more detailed format
-    } catch (error) {
-      console.error('Error formatting date:', error);
-      return 'Date not available';
-    }
-  };
 
   // Update newsletter content
   const updateMutation = useMutation({
@@ -83,14 +50,15 @@ export default function NewsletterEditor() {
     },
     onSuccess: () => {
       toast({
-        title: "Changes saved",
+        title: "Success",
         description: "Newsletter draft has been updated.",
       });
+      refetch();
     },
     onError: (error) => {
       toast({
         title: "Error",
-        description: error.message || "Failed to save changes",
+        description: error instanceof Error ? error.message : "Failed to save changes",
         variant: "destructive",
       });
     },
@@ -112,20 +80,21 @@ export default function NewsletterEditor() {
     },
     onSuccess: () => {
       toast({
-        title: "Newsletter Finalized",
-        description: "The newsletter has been finalized and is ready to send.",
+        title: "Success",
+        description: "Newsletter has been finalized and is ready to send.",
       });
+      refetch();
     },
     onError: (error) => {
       toast({
         title: "Error",
-        description: error.message || "Failed to finalize newsletter",
+        description: error instanceof Error ? error.message : "Failed to finalize newsletter",
         variant: "destructive",
       });
     },
   });
 
-  // Send newsletter to all members
+  // Send newsletter
   const sendMutation = useMutation({
     mutationFn: async () => {
       const response = await fetch(`/api/loops/${loopId}/newsletters/${newsletterId}/send`, {
@@ -141,14 +110,15 @@ export default function NewsletterEditor() {
     },
     onSuccess: () => {
       toast({
-        title: "Newsletter sent",
-        description: "The newsletter has been sent to all loop members.",
+        title: "Success",
+        description: "Newsletter has been sent to all loop members.",
       });
+      refetch();
     },
     onError: (error) => {
       toast({
         title: "Error",
-        description: error.message || "Failed to send newsletter",
+        description: error instanceof Error ? error.message : "Failed to send newsletter",
         variant: "destructive",
       });
     },
@@ -170,7 +140,7 @@ export default function NewsletterEditor() {
             <CardTitle className="text-destructive">Error</CardTitle>
           </CardHeader>
           <CardContent>
-            <p>{error?.message || "Failed to load newsletter"}</p>
+            <p>{error instanceof Error ? error.message : "Failed to load newsletter"}</p>
           </CardContent>
         </Card>
       </div>
@@ -184,31 +154,34 @@ export default function NewsletterEditor() {
     <div className="container mx-auto p-4 space-y-6">
       <Card>
         <CardHeader>
-          <CardTitle>Edit Newsletter Draft</CardTitle>
+          <CardTitle>Newsletter Editor</CardTitle>
           <CardDescription>
             Make changes to the newsletter before sending it to loop members
           </CardDescription>
           <div className="text-sm text-muted-foreground space-y-1">
-            <p>Created on {formatDate(newsletter?.createdAt)}</p>
-            <p>Last updated on {formatDate(newsletter?.updatedAt)}</p>
-            {newsletter?.sentAt && <p>Sent on {formatDate(newsletter?.sentAt)}</p>}
+            <p>Created: {formatDateTime(newsletter.createdAt)}</p>
+            <p>Last updated: {formatDateTime(newsletter.updatedAt)}</p>
+            {newsletter.sentAt && <p>Sent: {formatDateTime(newsletter.sentAt)}</p>}
           </div>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="flex gap-4 mb-4">
-            <Button
-              onClick={() => updateMutation.mutate()}
-              disabled={updateMutation.isPending || !canFinalize}
-            >
-              {updateMutation.isPending ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Saving...
-                </>
-              ) : (
-                'Save Changes'
-              )}
-            </Button>
+            {canFinalize && (
+              <Button
+                onClick={() => updateMutation.mutate()}
+                disabled={updateMutation.isPending}
+              >
+                {updateMutation.isPending ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Saving...
+                  </>
+                ) : (
+                  'Save Changes'
+                )}
+              </Button>
+            )}
+
             <Button
               variant="outline"
               onClick={() => window.open(`/newsletters/${newsletter.urlId}`, '_blank')}
@@ -216,6 +189,7 @@ export default function NewsletterEditor() {
               <Eye className="mr-2 h-4 w-4" />
               Preview
             </Button>
+
             {canFinalize && (
               <Button
                 variant="outline"
@@ -235,6 +209,7 @@ export default function NewsletterEditor() {
                 )}
               </Button>
             )}
+
             {canSend && (
               <Button
                 variant="default"
