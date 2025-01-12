@@ -838,7 +838,7 @@ export function registerRoutes(app: Express): Server {
     }
   });
 
-  // Newsletter Generation Route (updated)
+  // Update the newsletter generation route to properly handle timestamps
   app.post("/api/loops/:id/newsletters/generate", requirePrivilegedAccess, async (req, res) => {
     const user = req.user as User | undefined;
     if (!user?.id) {
@@ -909,7 +909,8 @@ export function registerRoutes(app: Express): Server {
       // Generate a unique URL ID
       const urlId = nanoid(10);
 
-      // Save the draft newsletter
+      // Save the draft newsletter with explicit timestamps
+      const now = new Date();
       const [newsletter] = await db
         .insert(newsletters)
         .values({
@@ -917,6 +918,8 @@ export function registerRoutes(app: Express): Server {
           content: newsletterContent,
           status: 'draft',
           urlId,
+          createdAt: now,
+          updatedAt: now,
         })
         .returning();
 
