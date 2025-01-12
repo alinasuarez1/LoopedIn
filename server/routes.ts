@@ -838,7 +838,7 @@ export function registerRoutes(app: Express): Server {
     }
   });
 
-  // Newsletter Management Routes
+  // Newsletter Generation Route (updated)
   app.post("/api/loops/:id/newsletters/generate", requirePrivilegedAccess, async (req, res) => {
     const user = req.user as User | undefined;
     if (!user?.id) {
@@ -852,10 +852,27 @@ export function registerRoutes(app: Express): Server {
       // Get all updates for this loop
       const loop = await db.query.loops.findFirst({
         where: eq(loops.id, loopId),
+        columns: {
+          id: true,
+          name: true,
+          vibe: true,
+        },
         with: {
           updates: {
+            columns: {
+              id: true,
+              content: true,
+              mediaUrls: true,
+              userId: true,
+            },
             with: {
-              user: true,
+              user: {
+                columns: {
+                  id: true,
+                  firstName: true,
+                  lastName: true,
+                },
+              },
             },
           },
         },
@@ -893,39 +910,59 @@ export function registerRoutes(app: Express): Server {
       const urlId = nanoid(10);
 
       // Save the draft newsletter
-      const newsletterData: Omit<InsertNewsletter, 'id' | 'createdAt' | 'updatedAt' | 'sentAt'> = {
-        loopId,
-        content: newsletterContent,
-        status: 'draft',
-        urlId,
-      };
-
       const [newsletter] = await db
         .insert(newsletters)
-        .values(newsletterData)
+        .values({
+          loopId,
+          content: newsletterContent,
+          status: 'draft',
+          urlId,
+        })
         .returning();
 
       if (!newsletter) {
         throw new Error("Failed to create newsletter");
       }
 
-      // Return consistent response format
       res.json({
-        newsletter: {
-          id: newsletter.id,
-          loopId: newsletter.loopId,
-          content: newsletter.content,
-          status: newsletter.status,
-          urlId: newsletter.urlId,
-          sentAt: newsletter.sentAt,
-          createdAt: newsletter.createdAt,
-          updatedAt: newsletter.updatedAt
-        },
+        newsletter,
         url: `/newsletters/${urlId}`
       });
     } catch (error) {
       console.error("Error generating newsletter:", error);
       res.status(500).send(error instanceof Error ? error.message : "Failed to generate newsletter");
+    }
+  });
+
+  // Newsletter Preview Route
+  app.get("/api/loops/:id/newsletters/:newsletterId/preview", requirePrivilegedAccess, async (req, res) => {
+    try {
+      const [newsletter] = await db.query.newsletters.findMany({
+        where: and(
+          eq(newsletters.id, parseInt(req.params.newsletterId)),
+          eq(newsletters.loopId, parseInt(req.params.id))
+        ),
+        columns: {
+          id: true,
+          content: true,
+          status: true,
+          urlId: true,
+          sentAt: true,
+          createdAt: true,
+          updatedAt: true,
+          loopId: true,
+        },
+        limit: 1,
+      });
+
+      if (!newsletter) {
+        return res.status(404).send("Newsletter not found");
+      }
+
+      res.json(newsletter);
+    } catch (error) {
+      console.error("Error getting newsletter preview:", error);
+      res.status(500).send("Failed to get newsletter preview");
     }
   });
 
@@ -1021,8 +1058,7 @@ export function registerRoutes(app: Express): Server {
             }
           </style>
         </head>
-        <body class="bg-gray-50 min-h-screen py-8">
-          <div class="max-w-4xl mx-auto px-4">
+        <body class="bg-gray-50 min-h-screen py-8"><div class="max-w-4xl mx-auto px-4">
             <article class="bg-white rounded-xl shadow-lg overflow-hidden">
               ${newsletter.content}
             </article>
@@ -1195,46 +1231,7 @@ export function registerRoutes(app: Express): Server {
     }
   });
 
-  // Update the finalize endpoint
-  app.post("/api/loops/:id/newsletters/:newsletterId/finalize", requirePrivilegedAccess, async (req, res) => {
-    try {
-      const loopId = parseInt(req.params.id);
-      const newsletterId = parseInt(req.params.newsletterId);
-
-      // Get the newsletter and verify it exists and is in draft status
-      const [newsletter] = await db.query.newsletters.findMany({
-        where: and(
-          eq(newsletters.id, newsletterId),
-          eq(newsletters.loopId, loopId),
-          eq(newsletters.status, 'draft')
-        ),
-        limit: 1,
-      });
-
-      if (!newsletter) {
-        return res.status(404).send("Newsletter not found or not in draft status");
-      }
-
-      // Update the newsletter status to finalized
-      const [updatedNewsletter] = await db
-        .update(newsletters)
-        .set({
-          status: 'finalized' as const,
-          updatedAt: new Date(),
-        })
-        .where(eq(newsletters.id, newsletterId))
-        .returning();
-
-      if (!updatedNewsletter) {
-        throw new Error("Failed to update newsletter status");
-      }
-
-      res.json(updatedNewsletter);
-    } catch (error) {
-      console.error("Error finalizing newsletter:", error);
-      res.status(500).send("Failed to finalize newsletter");
-    }
-  });
+  // Update the finalize endpoint (removed duplicate)
 
   // Create HTTP server and return it
   const httpServer = createServer(app);
