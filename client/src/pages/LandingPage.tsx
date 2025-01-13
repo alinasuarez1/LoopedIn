@@ -6,7 +6,7 @@ import {
   AccordionTrigger,
 } from "@/components/ui/accordion";
 import { Link } from "wouter";
-import { MessageSquareText, Cpu, Users2 } from "lucide-react";
+import { MessageSquareText, Cpu, Users2, BookOpen } from "lucide-react";
 
 const faqs = [
   {
@@ -94,6 +94,31 @@ export default function LandingPage() {
               </p>
             </div>
           </div>
+        </div>
+      </section>
+
+      {/* Getting Started Guide Section */}
+      <section className="py-16 bg-background">
+        <div className="container mx-auto px-4 text-center">
+          <div className="flex items-center justify-center gap-3 mb-8">
+            <div className="p-2 rounded-full bg-primary/10">
+              <BookOpen className="h-8 w-8 text-primary" />
+            </div>
+            <h2 className="text-3xl font-bold">Getting Started Guide</h2>
+          </div>
+          <p className="text-xl text-muted-foreground mb-8 max-w-2xl mx-auto">
+            New to LoopedIn? Our comprehensive guide will walk you through everything you need to know to get the most out of your group communications.
+          </p>
+          <a 
+            href="https://docs.google.com/document/d/e/2PACX-1vTmtFJThtnq5KeH2VfzucGRSmSDKClsjaoJcoVxJFCeeoLsrVI0d7uXzoS2rL46zyCy8sjrwQrTegHV/pub" 
+            target="_blank" 
+            rel="noopener noreferrer"
+            className="inline-block"
+          >
+            <Button size="lg" variant="outline" className="text-lg px-8">
+              Read the Guide
+            </Button>
+          </a>
         </div>
       </section>
 
