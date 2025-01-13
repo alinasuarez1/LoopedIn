@@ -5,7 +5,8 @@ import session from "express-session";
 import createMemoryStore from "memorystore";
 import { scrypt, randomBytes, timingSafeEqual } from "crypto";
 import { promisify } from "util";
-import { users, type SelectUser } from "@db/schema";
+import { users } from "@db/schema";
+import type { User } from "@db/schema";
 import { db } from "@db";
 import { eq } from "drizzle-orm";
 
@@ -28,10 +29,11 @@ const crypto = {
   },
 };
 
-// extend express user object with our schema
+// Extend Express.User to use our User type
 declare global {
   namespace Express {
-    interface User extends SelectUser {}
+    // tslint:disable-next-line:no-empty-interface
+    type User = User;
   }
 }
 
@@ -104,6 +106,7 @@ export function setupAuth(app: Express) {
     }
   });
 
+  // The smart registration logic is already implemented here
   app.post("/api/register", async (req, res, next) => {
     try {
       const { password, firstName, lastName, email, phoneNumber } = req.body;
