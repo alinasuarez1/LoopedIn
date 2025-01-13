@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 import { useLoops } from "../hooks/use-loops";
 import { useUser } from "../hooks/use-user";
 import { Button } from "@/components/ui/button";
@@ -43,19 +43,36 @@ type CreateLoopForm = {
   name: string;
   frequency: "biweekly" | "monthly";
   context?: string;
+  vibe: string[];
 };
 
 export default function Dashboard() {
   const { user } = useUser();
   const { loops, isLoading, createLoop } = useLoops();
   const { toast } = useToast();
-  const form = useForm<CreateLoopForm>();
-  const [selectedVibes, setSelectedVibes] = useState<string[]>([]);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
 
-  const onSubmit = async (data: CreateLoopForm) => {
+  const form = useForm<CreateLoopForm>({
+    mode: 'onBlur',
+    defaultValues: {
+      name: '',
+      frequency: 'biweekly',
+      context: '',
+      vibe: []
+    }
+  });
+
+  const onVibeChange = useCallback((value: string, checked: boolean) => {
+    const currentVibes = form.getValues('vibe');
+    const newVibes = checked
+      ? [...currentVibes, value]
+      : currentVibes.filter(v => v !== value);
+    form.setValue('vibe', newVibes, { shouldValidate: true });
+  }, [form]);
+
+  const onSubmit = useCallback(async (data: CreateLoopForm) => {
     try {
-      if (selectedVibes.length === 0) {
+      if (data.vibe.length === 0) {
         toast({
           title: "Error",
           description: "Please select at least one newsletter vibe",
@@ -66,7 +83,6 @@ export default function Dashboard() {
 
       const response = await createLoop({
         ...data,
-        vibe: selectedVibes,
         creatorId: user!.id,
         reminderSchedule: DEFAULT_REMINDER_SCHEDULE,
       });
@@ -79,9 +95,7 @@ export default function Dashboard() {
             : ""),
       });
 
-      // Reset form and close dialog
       form.reset();
-      setSelectedVibes([]);
       setIsDialogOpen(false);
     } catch (error) {
       toast({
@@ -90,7 +104,13 @@ export default function Dashboard() {
         variant: "destructive",
       });
     }
-  };
+  }, [createLoop, user, toast, form]);
+
+  const onFrequencyChange = useCallback((value: string) => {
+    form.setValue('frequency', value as "biweekly" | "monthly", { 
+      shouldValidate: true 
+    });
+  }, [form]);
 
   if (isLoading) {
     return (
@@ -105,7 +125,6 @@ export default function Dashboard() {
       setIsDialogOpen(open);
       if (!open) {
         form.reset();
-        setSelectedVibes([]);
       }
     }}>
       <DialogTrigger asChild>
@@ -127,11 +146,7 @@ export default function Dashboard() {
           </div>
           <div className="space-y-2">
             <Label htmlFor="frequency">Newsletter Frequency</Label>
-            <Select
-              onValueChange={(value) =>
-                form.setValue("frequency", value as "biweekly" | "monthly")
-              }
-            >
+            <Select onValueChange={onFrequencyChange}>
               <SelectTrigger>
                 <SelectValue placeholder="Select frequency" />
               </SelectTrigger>
@@ -151,14 +166,10 @@ export default function Dashboard() {
                 <div key={vibe.value} className="flex items-center space-x-2">
                   <Checkbox
                     id={vibe.value}
-                    checked={selectedVibes.includes(vibe.value)}
-                    onCheckedChange={(checked) => {
-                      setSelectedVibes(prev =>
-                        checked
-                          ? [...prev, vibe.value]
-                          : prev.filter(v => v !== vibe.value)
-                      );
-                    }}
+                    checked={form.watch('vibe').includes(vibe.value)}
+                    onCheckedChange={(checked) => 
+                      onVibeChange(vibe.value, checked as boolean)
+                    }
                   />
                   <label
                     htmlFor={vibe.value}
