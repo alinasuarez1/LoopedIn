@@ -36,6 +36,7 @@ export const loopMembers = pgTable("loop_members", {
   loopId: integer("loop_id").references(() => loops.id),
   userId: integer("user_id").references(() => users.id),
   context: text("context"),
+  nickname: text("nickname"), // Added nickname field
   createdAt: timestamp("created_at").defaultNow(),
 });
 
@@ -98,6 +99,7 @@ export const newslettersRelations = relations(newsletters, ({ one }) => ({
   }),
 }));
 
+// Schema validation
 export const insertUserSchema = createInsertSchema(users);
 export const selectUserSchema = createSelectSchema(users);
 export const insertLoopSchema = createInsertSchema(loops);
@@ -109,6 +111,7 @@ export const selectUpdateSchema = createSelectSchema(updates);
 export const insertNewsletterSchema = createInsertSchema(newsletters);
 export const selectNewsletterSchema = createSelectSchema(newsletters);
 
+// Type exports
 export type User = typeof users.$inferSelect;
 export type InsertUser = typeof users.$inferInsert;
 export type Loop = typeof loops.$inferSelect;
