@@ -973,6 +973,42 @@ export function registerRoutes(app: Express): Server {
     }
   });
 
+  // Add this route handler right after the newsletter preview route
+  app.put("/api/loops/:id/newsletters/:newsletterId", requirePrivilegedAccess, async (req, res) => {
+    try {
+      const { content } = req.body;
+
+      if (!content) {
+        return res.status(400).send("Content is required");
+      }
+
+      // Update the newsletter
+      const [newsletter] = await db
+        .update(newsletters)
+        .set({ 
+          content,
+          updatedAt: new Date() 
+        })
+        .where(
+          and(
+            eq(newsletters.id, parseInt(req.params.newsletterId)),
+            eq(newsletters.loopId, parseInt(req.params.id)),
+            eq(newsletters.status, 'draft') // Only allow updates to draft newsletters
+          )
+        )
+        .returning();
+
+      if (!newsletter) {
+        return res.status(404).send("Newsletter not found or cannot be edited");
+      }
+
+      res.json(newsletter);
+    } catch (error) {
+      console.error("Error updating newsletter:", error);
+      res.status(500).send(error instanceof Error ? error.message : "Failed to update newsletter");
+    }
+  });
+
   // Add a new route to serve newsletters by URL ID
   app.get("/newsletters/:urlId", async (req, res) => {
     try {
@@ -1058,7 +1094,7 @@ export function registerRoutes(app: Express): Server {
               border-radius: 0.5rem;
               padding: 1.5rem;
               margin-bottom: 2rem;
-              background-color: #f8fafc;            }
+              background-color: #f8fafc;                        }
             .updatecontent {              margin: 1rem 0;
             }
           </style>
