@@ -101,14 +101,14 @@ export default function LoopManager() {
   });
 
   const onPhoneChange = useCallback((phone: string) => {
-    form.setValue('phoneNumber', phone, { 
+    form.setValue('phoneNumber', phone, {
       shouldTouch: true,
       shouldDirty: true,
-      shouldValidate: false 
+      shouldValidate: false
     });
   }, [form]);
 
-  const onSubmit = async (data: AddMemberForm) => {
+  const onSubmit = useCallback(async (data: AddMemberForm) => {
     try {
       const response = await fetch(`/api/loops/${id}/members`, {
         method: 'POST',
@@ -140,7 +140,25 @@ export default function LoopManager() {
         variant: "destructive",
       });
     }
-  };
+  }, [queryClient, id, toast, setIsDialogOpen]);
+
+  // Fix the deleteLoop handler
+  const handleDeleteLoop = useCallback(async () => {
+    try {
+      await deleteLoop();
+      toast({
+        title: "Success",
+        description: "Loop deleted successfully",
+      });
+      setLocation('/');
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : "Failed to delete loop",
+        variant: "destructive",
+      });
+    }
+  }, [deleteLoop, toast, setLocation]);
 
   if (isLoading || !loop) {
     return (
@@ -166,6 +184,7 @@ export default function LoopManager() {
             <Label htmlFor="firstName">First Name</Label>
             <Input
               id="firstName"
+              key="firstName-input"
               {...form.register("firstName", { required: true })}
             />
           </div>
@@ -173,6 +192,7 @@ export default function LoopManager() {
             <Label htmlFor="lastName">Last Name</Label>
             <Input
               id="lastName"
+              key="lastName-input"
               {...form.register("lastName", { required: true })}
             />
           </div>
@@ -180,6 +200,7 @@ export default function LoopManager() {
             <Label htmlFor="email">Email (Optional)</Label>
             <Input
               id="email"
+              key="email-input"
               type="email"
               {...form.register("email")}
             />
@@ -190,16 +211,21 @@ export default function LoopManager() {
               country={'us'}
               value={form.watch('phoneNumber')}
               onChange={onPhoneChange}
+              key="phone-input"
               containerClass="!w-full"
               inputClass="!w-full !h-10 !py-2 !pl-12 !pr-3 !text-base !bg-background !border-input hover:!bg-accent hover:!text-accent-foreground !rounded-md"
               buttonClass="!absolute !left-0 !h-full !bg-background !border-input hover:!bg-accent hover:!text-accent-foreground !rounded-l-md"
               dropdownClass="!bg-background !text-foreground"
+              enableSearch
+              disableSearchIcon
+              searchClass="!bg-background !text-foreground"
             />
           </div>
           <div className="space-y-2">
             <Label htmlFor="context">Member Context (Optional)</Label>
             <Input
               id="context"
+              key="context-input"
               {...form.register("context")}
               placeholder="e.g., Family member, Team lead, etc."
             />
@@ -467,22 +493,7 @@ export default function LoopManager() {
                         <AlertDialogFooter>
                           <AlertDialogCancel>Cancel</AlertDialogCancel>
                           <AlertDialogAction
-                            onClick={async () => {
-                              try {
-                                await deleteLoop(loop.id);
-                                toast({
-                                  title: "Success",
-                                  description: "Loop deleted successfully",
-                                });
-                                setLocation('/');
-                              } catch (error) {
-                                toast({
-                                  title: "Error",
-                                  description: error instanceof Error ? error.message : "Failed to delete loop",
-                                  variant: "destructive",
-                                });
-                              }
-                            }}
+                            onClick={handleDeleteLoop}
                             className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
                           >
                             Delete
