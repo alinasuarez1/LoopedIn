@@ -18,9 +18,8 @@ import {
 } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { Loader2, ExternalLink } from "lucide-react";
+import { format } from "date-fns";
 import { useToast } from "@/hooks/use-toast";
-import { formatDate, formatDateTime } from "@/lib/date";
-import type { Newsletter } from "@/types/newsletter";
 
 interface LoopDetails {
   id: number;
@@ -57,7 +56,13 @@ interface LoopDetails {
       lastName: string;
     };
   }>;
-  newsletters: Newsletter[];
+  newsletters: Array<{
+    id: number;
+    content: string;
+    sentAt: string;
+    urlId: string;
+    status: 'draft' | 'sent'; // Added status field
+  }>;
 }
 
 export default function AdminLoopDetails() {
@@ -130,30 +135,27 @@ export default function AdminLoopDetails() {
     );
   }
 
-  // Filter newsletters based on status
-  const visibleNewsletters = loop.newsletters.filter(newsletter =>
-    window.location.pathname.startsWith('/admin/') ? true : newsletter.status !== 'draft'
-  );
+  const handleGenerateNewsletter = () => {
+    generateNewsletterMutation.mutate();
+  };
 
   return (
     <div className="container mx-auto p-4 space-y-6">
       <div className="flex justify-between items-center">
         <h1 className="text-3xl font-bold">{loop.name}</h1>
-        {window.location.pathname.startsWith('/admin/') && (
-          <Button
-            onClick={() => generateNewsletterMutation.mutate()}
-            disabled={generateNewsletterMutation.isPending}
-          >
-            {generateNewsletterMutation.isPending ? (
-              <>
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Generating...
-              </>
-            ) : (
-              'Generate Newsletter'
-            )}
-          </Button>
-        )}
+        <Button
+          onClick={handleGenerateNewsletter}
+          disabled={generateNewsletterMutation.isPending}
+        >
+          {generateNewsletterMutation.isPending ? (
+            <>
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              Generating...
+            </>
+          ) : (
+            'Generate Newsletter'
+          )}
+        </Button>
       </div>
 
       {/* Loop Info */}
@@ -232,7 +234,7 @@ export default function AdminLoopDetails() {
                     {update.user.firstName} {update.user.lastName}
                   </p>
                   <time className="text-sm text-muted-foreground">
-                    {formatDateTime(update.createdAt)}
+                    {format(new Date(update.createdAt), "PPp")}
                   </time>
                 </div>
               </CardHeader>
@@ -262,29 +264,25 @@ export default function AdminLoopDetails() {
       {/* Newsletters section */}
       <Card>
         <CardHeader>
-          <CardTitle>Newsletters</CardTitle>
+          <CardTitle>Past Newsletters</CardTitle>
           <CardDescription>
-            {visibleNewsletters.length} {window.location.pathname.startsWith('/admin/') ? 'total' : 'published'} newsletters
+            {loop.newsletters.length} total newsletters
           </CardDescription>
         </CardHeader>
         <CardContent>
           <div className="space-y-2">
-            {visibleNewsletters.map((newsletter) => (
+            {loop.newsletters.map((newsletter) => (
               <div
                 key={newsletter.id}
                 className="flex items-center justify-between p-3 bg-muted/50 rounded-lg hover:bg-muted transition-colors"
               >
                 <div className="flex flex-col">
                   <time className="text-sm text-muted-foreground">
-                    {formatDateTime(newsletter.status === 'sent' && newsletter.sentAt 
-                      ? newsletter.sentAt 
-                      : newsletter.createdAt)}
+                    {format(new Date(newsletter.sentAt), "PPp")}
                   </time>
-                  {window.location.pathname.startsWith('/admin/') && (
-                    <span className="text-xs text-muted-foreground mt-1">
-                      Status: {newsletter.status}
-                    </span>
-                  )}
+                  <span className="text-xs text-muted-foreground mt-1">
+                    Status: {newsletter.status}
+                  </span>
                 </div>
                 <div className="flex items-center gap-2">
                   {newsletter.status === 'draft' ? (
@@ -309,9 +307,9 @@ export default function AdminLoopDetails() {
                 </div>
               </div>
             ))}
-            {visibleNewsletters.length === 0 && (
+            {loop.newsletters.length === 0 && (
               <p className="text-center text-muted-foreground py-4">
-                No newsletters available
+                No newsletters have been generated yet
               </p>
             )}
           </div>

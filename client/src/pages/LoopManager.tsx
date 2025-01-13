@@ -322,47 +322,94 @@ export default function LoopManager() {
                 )}
               </TabsContent>
               <TabsContent value="newsletters" className="mt-4">
-                {/* Newsletters section */}
-                <Card>
-                  <CardHeader>
-                    <CardTitle>Newsletters</CardTitle>
-                    <CardDescription>
-                      {loop.newsletters.filter(n => n.status !== 'draft').length} published newsletters
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="space-y-2">
-                      {loop.newsletters
-                        .filter(newsletter => newsletter.status !== 'draft')
-                        .map((newsletter) => (
-                          <div
-                            key={newsletter.id}
-                            className="flex items-center justify-between p-3 bg-muted/50 rounded-lg hover:bg-muted transition-colors"
-                          >
-                            <div className="flex flex-col">
-                              <time className="text-sm text-muted-foreground">
-                                {new Date(newsletter.sentAt).toLocaleString()}
-                              </time>
+                <div className="flex flex-col gap-4 mb-4">
+                  <div className="flex justify-between items-center">
+                    <h3 className="text-lg font-semibold">Newsletters</h3>
+                  </div>
+                  <div className="w-full">
+                    {(() => {
+                      // Calculate the next newsletter date based on either creation date or last newsletter
+                      const lastNewsletter = loop.newsletters?.[loop.newsletters.length - 1];
+                      const baseDate = lastNewsletter
+                        ? new Date(lastNewsletter.sentAt!)
+                        : new Date(loop.createdAt!);
+                      const nextNewsletterDate = new Date(baseDate);
+
+                      // Add days based on frequency
+                      if (loop.frequency === 'biweekly') {
+                        nextNewsletterDate.setDate(nextNewsletterDate.getDate() + 14);
+                      } else if (loop.frequency === 'monthly') {
+                        nextNewsletterDate.setMonth(nextNewsletterDate.getMonth() + 1);
+                      }
+
+                      const now = new Date();
+                      const diffTime = Math.abs(nextNewsletterDate.getTime() - now.getTime());
+                      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+                      const isOverdue = nextNewsletterDate < now;
+
+                      return (
+                        <Card className={isOverdue ? "border-destructive" : "border-primary"}>
+                          <CardContent className="py-4">
+                            <div className="flex items-center justify-between">
+                              <div>
+                                <p className="text-sm font-medium">
+                                  {lastNewsletter ? "Next Newsletter" : "First Newsletter"}
+                                </p>
+                                <p className="text-2xl font-bold mt-1">
+                                  {isOverdue ? (
+                                    <span className="text-destructive">
+                                      Overdue by {diffDays} days
+                                    </span>
+                                  ) : (
+                                    <span>
+                                      In {diffDays} days
+                                    </span>
+                                  )}
+                                </p>
+                                <p className="text-sm text-muted-foreground mt-1">
+                                  {`Scheduled for ${nextNewsletterDate.toLocaleDateString()}`}
+                                </p>
+                              </div>
+                              <div className="text-sm text-muted-foreground">
+                                {`${loop.frequency} newsletter`}
+                              </div>
                             </div>
-                            <a
-                              href={`/newsletters/${newsletter.urlId}`}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="flex items-center gap-2 text-primary hover:underline"
-                            >
-                              View Newsletter
-                              <ExternalLink className="h-4 w-4" />
-                            </a>
-                          </div>
-                        ))}
-                      {loop.newsletters.filter(n => n.status !== 'draft').length === 0 && (
-                        <p className="text-center text-muted-foreground py-4">
-                          No newsletters available
-                        </p>
-                      )}
-                    </div>
-                  </CardContent>
-                </Card>
+                          </CardContent>
+                        </Card>
+                      );
+                    })()}
+                  </div>
+                </div>
+
+                {loop.newsletters?.length > 0 ? (
+                  <div className="space-y-2">
+                    {loop.newsletters.map((newsletter) => (
+                      <div
+                        key={newsletter.id}
+                        className="flex items-center justify-between p-3 bg-muted/50 rounded-lg hover:bg-muted transition-colors"
+                      >
+                        <div className="flex flex-col">
+                          <time className="text-sm text-muted-foreground">
+                            {new Date(newsletter.sentAt!).toLocaleString()}
+                          </time>
+                        </div>
+                        <a
+                          href={`/newsletters/${newsletter.urlId}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="flex items-center gap-2 text-primary hover:underline"
+                        >
+                          View Newsletter
+                          <ExternalLink className="h-4 w-4" />
+                        </a>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-center text-muted-foreground py-4">
+                    No newsletters have been generated yet
+                  </p>
+                )}
               </TabsContent>
               <TabsContent value="members" className="mt-4">
                 <div className="flex justify-between items-center mb-4">

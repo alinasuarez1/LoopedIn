@@ -2,14 +2,13 @@ import type { Express, Request, Response, NextFunction } from "express";
 import { createServer, type Server } from "http";
 import { setupAuth } from "./auth";
 import { db } from "@db";
-import { loops, loopMembers, updates, newsletters, users, type User, type InsertNewsletter } from "@db/schema";
+import { loops, loopMembers, updates, newsletters, users, type User } from "@db/schema";
 import { and, eq, desc, ilike } from "drizzle-orm";
 import { generateNewsletter, suggestNewsletterImprovements } from "./openai";
 import { sendWelcomeMessage, sendSMS } from "./twilio";
 import { processAndSaveMedia } from "./storage";
 import { nanoid } from 'nanoid';
 import { randomBytes } from 'node:crypto';
-import type { SQL } from 'drizzle-orm';
 
 // Middleware to check if user has privileged access
 const requirePrivilegedAccess = async (req: Request, res: Response, next: NextFunction) => {
@@ -34,22 +33,28 @@ export function registerRoutes(app: Express): Server {
     const { search, sort = "recent" } = req.query;
 
     try {
-      // Fix the query configuration for loops.findMany
-      const baseQuery = {
+      let baseQuery = {
         with: {
-          creator: true,
+          creator: {
+            columns: {
+              id: true,
+              firstName: true,
+              lastName: true,
+              email: true
+            }
+          },
           members: {
             with: {
-              user: true,
-            },
+              user: true
+            }
           },
           updates: {
             with: {
-              user: true,
-            },
+              user: true
+            }
           },
-          newsletters: true,
-        },
+          newsletters: true
+        }
       };
 
       let whereClause = undefined;
@@ -59,7 +64,7 @@ export function registerRoutes(app: Express): Server {
         whereClause = ilike(loops.name, `%${search.trim()}%`);
       }
 
-      // Update the findMany query
+      // Construct the query
       const allLoops = await db.query.loops.findMany({
         ...baseQuery,
         ...(whereClause ? { where: whereClause } : {}),
@@ -98,16 +103,7 @@ export function registerRoutes(app: Express): Server {
           orderBy: desc(updates.createdAt),
         },
         newsletters: {
-          columns: {
-            id: true,
-            content: true,
-            status: true,
-            urlId: true,
-            sentAt: true,
-            createdAt: true,
-            updatedAt: true,
-          },
-          orderBy: desc(newsletters.createdAt),
+          orderBy: desc(newsletters.sentAt),
         },
       },
       limit: 1,
@@ -331,65 +327,18 @@ export function registerRoutes(app: Express): Server {
 
     const [loop] = await db.query.loops.findMany({
       where: eq(loops.id, parseInt(req.params.id)),
-      columns: {
-        id: true,
-        name: true,
-        frequency: true,
-        vibe: true,
-        context: true,
-        reminderSchedule: true,
-        creatorId: true,
-        createdAt: true,
-      },
       with: {
         members: {
-          columns: {
-            id: true,
-            loopId: true,
-            userId: true,
-            context: true,
-            createdAt: true,
-          },
           with: {
-            user: {
-              columns: {
-                id: true,
-                firstName: true,
-                lastName: true,
-                email: true,
-                phoneNumber: true,
-              },
-            },
+            user: true,
           },
         },
         updates: {
-          columns: {
-            id: true,
-            content: true,
-            mediaUrls: true,
-            createdAt: true,
-          },
           with: {
-            user: {
-              columns: {
-                id: true,
-                firstName: true,
-                lastName: true,
-              },
-            },
+            user: true,
           },
         },
-        newsletters: {
-          columns: {
-            id: true,
-            content: true,
-            status: true,
-            urlId: true,
-            sentAt: true,
-            createdAt: true,
-            updatedAt: true,
-          },
-        },
+        newsletters: true,
       },
       limit: 1,
     });
@@ -769,13 +718,73 @@ export function registerRoutes(app: Express): Server {
 
 
   // Newsletters
-  app.post("/api/loops/:id/newsletters", requirePrivilegedAccess, async (req, res) => {
+  app.post("/api/loops/:id/newsletters", async (req, res) => {
     const user = req.user as User | undefined;
     if (!user?.id) {
       return res.status(401).send("Not authenticated");
     }
 
     const loopId = parseInt(req.params.id);
+
+    // Get all updates for this loop
+    const loop = await db.query.loops.findFirst({
+      where: eq(loops.id, loopId),
+      with: {
+        updates: {
+          with: {
+            user: true,
+          },
+        },
+      },
+    });
+
+    if (!loop) {
+      return res.status(404).send("Loop not found");
+    }
+
+    if (!loop.updates.length) {
+      return res.status(400).send("No updates available for newsletter generation");
+    }
+
+    // Generate newsletter content using OpenAI
+    const updatesForAI = loop.updates.map(update => {
+      const user = update.user;
+      if (!user) {
+        throw new Error("Update missing user information");
+      }
+      return {
+        content: update.content,
+        userName: `${user.firstName} ${user.lastName}`,
+      };
+    });
+
+    const newsletterContent = await generateNewsletter(
+      loop.name,
+      updatesForAI,
+      loop.vibe
+    );
+
+    // Save the newsletter
+    const [newsletter] = await db
+      .insert(newsletters)
+      .values({
+        loopId,
+        content: newsletterContent,
+      })
+      .returning();
+
+    res.json(newsletter);
+  });
+
+  // Newsletter Management Routes
+  app.post("/api/loops/:id/newsletters/generate", requirePrivilegedAccess, async (req, res) => {
+    const user = req.user as User | undefined;
+    if (!user?.id) {
+      return res.status(401).send("Not authenticated");
+    }
+
+    const loopId = parseInt(req.params.id);
+    const { customHeader, customClosing } = req.body;
 
     try {
       // Get all updates for this loop
@@ -814,101 +823,6 @@ export function registerRoutes(app: Express): Server {
       const newsletterContent = await generateNewsletter(
         loop.name,
         updatesForAI,
-        loop.vibe
-      );
-
-      // Generate a unique URL ID
-      const urlId = nanoid(10);
-
-      // Insert the newsletter - let PostgreSQL handle timestamps
-      const [newsletter] = await db
-        .insert(newsletters)
-        .values({
-          loopId,
-          content: newsletterContent,
-          status: 'draft',
-          urlId,
-        })
-        .returning();
-
-      if (!newsletter) {
-        throw new Error("Failed to create newsletter");
-      }
-
-      res.json({
-        newsletter,
-        url: `/newsletters/${urlId}`
-      });
-    } catch (error) {
-      console.error("Error creating newsletter:", error);
-      res.status(500).send("Failed to create newsletter");
-    }
-  });
-
-  // app.post("/api/loops/:id/newsletters/generate", requirePrivilegedAccess, async (req, res) => { ... });
-  app.post("/api/loops/:id/newsletters/generate", requirePrivilegedAccess, async (req, res) => {
-    const user = req.user as User | undefined;
-    if (!user?.id) {
-      return res.status(401).send("Not authenticated");
-    }
-
-    const loopId = parseInt(req.params.id);
-    const { customHeader, customClosing } = req.body;
-
-    try {
-      // Get all updates for this loop
-      const loop = await db.query.loops.findFirst({
-        where: eq(loops.id, loopId),
-        columns: {
-          id: true,
-          name: true,
-          vibe: true,
-        },
-        with: {
-          updates: {
-            columns: {
-              id: true,
-              content: true,
-              mediaUrls: true,
-              userId: true,
-            },
-            with: {
-              user: {
-                columns: {
-                  id: true,
-                  firstName: true,
-                  lastName: true,
-                },
-              },
-            },
-          },
-        },
-      });
-
-      if (!loop) {
-        return res.status(404).send("Loop not found");
-      }
-
-      if (!loop.updates.length) {
-        return res.status(400).send("No updates available for newsletter generation");
-      }
-
-      // Generate newsletter content using OpenAI
-      const updatesForAI = loop.updates.map(update => {
-        const user = update.user;
-        if (!user) {
-          throw new Error("Update missing user information");
-        }
-        return {
-          content: update.content,
-          userName: `${user.firstName} ${user.lastName}`,
-          mediaUrls: update.mediaUrls || [],
-        };
-      });
-
-      const newsletterContent = await generateNewsletter(
-        loop.name,
-        updatesForAI,
         loop.vibe,
         { customHeader, customClosing }
       );
@@ -916,7 +830,7 @@ export function registerRoutes(app: Express): Server {
       // Generate a unique URL ID
       const urlId = nanoid(10);
 
-      // Insert the newsletter with proper field names and let the database handle timestamps
+      // Save the draft newsletter
       const [newsletter] = await db
         .insert(newsletters)
         .values({
@@ -931,81 +845,23 @@ export function registerRoutes(app: Express): Server {
         throw new Error("Failed to create newsletter");
       }
 
+      // Return consistent response format
       res.json({
-        newsletter,
+        newsletter: {
+          id: newsletter.id,
+          loopId: newsletter.loopId,
+          content: newsletter.content,
+          status: newsletter.status,
+          urlId: newsletter.urlId,
+          sentAt: newsletter.sentAt,
+          createdAt: newsletter.createdAt,
+          updatedAt: newsletter.updatedAt
+        },
         url: `/newsletters/${urlId}`
       });
     } catch (error) {
       console.error("Error generating newsletter:", error);
       res.status(500).send(error instanceof Error ? error.message : "Failed to generate newsletter");
-    }
-  });
-
-  // Newsletter Preview Route
-  app.get("/api/loops/:id/newsletters/:newsletterId/preview", requirePrivilegedAccess, async (req, res) => {
-    try {
-      const [newsletter] = await db.query.newsletters.findMany({
-        where: and(
-          eq(newsletters.id, parseInt(req.params.newsletterId)),
-          eq(newsletters.loopId, parseInt(req.params.id))
-        ),
-        columns: {
-          id: true,
-          content: true,
-          status: true,
-          urlId: true,
-          sentAt: true,
-          createdAt: true,
-          updatedAt: true,
-          loopId: true,
-        },
-        limit: 1,
-      });
-
-      if (!newsletter) {
-        return res.status(404).send("Newsletter not found");
-      }
-
-      res.json(newsletter);
-    } catch (error) {
-      console.error("Error getting newsletter preview:", error);
-      res.status(500).send("Failed to get newsletter preview");
-    }
-  });
-
-  // Add this route handler right after the newsletter preview route
-  app.put("/api/loops/:id/newsletters/:newsletterId", requirePrivilegedAccess, async (req, res) => {
-    try {
-      const { content } = req.body;
-
-      if (!content) {
-        return res.status(400).send("Content is required");
-      }
-
-      // Update the newsletter
-      const [newsletter] = await db
-        .update(newsletters)
-        .set({ 
-          content,
-          updatedAt: new Date() 
-        })
-        .where(
-          and(
-            eq(newsletters.id, parseInt(req.params.newsletterId)),
-            eq(newsletters.loopId, parseInt(req.params.id)),
-            eq(newsletters.status, 'draft') // Only allow updates to draft newsletters
-          )
-        )
-        .returning();
-
-      if (!newsletter) {
-        return res.status(404).send("Newsletter not found or cannot be edited");
-      }
-
-      res.json(newsletter);
-    } catch (error) {
-      console.error("Error updating newsletter:", error);
-      res.status(500).send(error instanceof Error ? error.message : "Failed to update newsletter");
     }
   });
 
@@ -1094,16 +950,20 @@ export function registerRoutes(app: Express): Server {
               border-radius: 0.5rem;
               padding: 1.5rem;
               margin-bottom: 2rem;
-              background-color: #f8fafc;                        }
-            .updatecontent {              margin: 1rem 0;
+              background-color: #f8fafc;
+            }
+            .update-content {
+              margin: 1rem 0;
             }
           </style>
         </head>
-        <body class="bg-gray-50 min-h-screen py-8"><div class="max-w-4xl mx-auto px-4">
+        <body class="bg-gray-50 min-h-screen py-8">
+          <div class="max-w-4xl mx-auto px-4">
             <article class="bg-white rounded-xl shadow-lg overflow-hidden">
               ${newsletter.content}
             </article>
-          </div>          </div></body>
+          </div>
+        </body>
         </html>
       `);
     } catch (error) {
@@ -1120,16 +980,6 @@ export function registerRoutes(app: Express): Server {
           eq(newsletters.id, parseInt(req.params.newsletterId)),
           eq(newsletters.loopId, parseInt(req.params.id))
         ),
-        columns: {
-          id: true,
-          content: true,
-          status: true,
-          urlId: true,
-          sentAt: true,
-          createdAt: true,
-          updatedAt: true,
-          loopId: true,
-        },
         limit: 1,
       });
 
@@ -1139,169 +989,15 @@ export function registerRoutes(app: Express): Server {
 
       res.json(newsletter);
     } catch (error) {
-      console.error("Error getting newsletter preview:", error);
-      res.status(500).send("Failed to get newsletter preview");
+      console.error("Error fetching newsletter:", error);
+      res.status(500).send("Failed to fetch newsletter");
     }
   });
 
-  // Update newsletter finalize endpoint
-  app.post("/api/loops/:id/newsletters/:newsletterId/finalize", requirePrivilegedAccess, async (req, res) => {
-    try {
-      const loopId = parseInt(req.params.id);
-      const newsletterId = parseInt(req.params.newsletterId);
-
-      // Get the newsletter and verify it exists and is in draft status
-      const [newsletter] = await db.query.newsletters.findMany({
-        where: and(
-          eq(newsletters.id, newsletterId),
-          eq(newsletters.loopId, loopId),
-          eq(newsletters.status, 'draft')
-        ),
-        columns: {
-          id: true,
-          content: true,
-          status: true,
-          urlId: true,
-          sentAt: true,
-          createdAt: true,
-          updatedAt: true,
-          loopId: true,
-        },
-        limit: 1,
-      });
-
-      if (!newsletter) {
-        return res.status(404).send("Newsletter not found or not in draft status");
-      }
-
-      // Update the newsletter status to finalized
-      const [updatedNewsletter] = await db
-        .update(newsletters)
-        .set({
-          status: 'finalized' as const,
-          updatedAt: new Date(),
-        })
-        .where(eq(newsletters.id, newsletterId))
-        .returning();
-
-      if (!updatedNewsletter) {
-        throw new Error("Failed to update newsletter status");
-      }
-
-      res.json(updatedNewsletter);
-    } catch (error) {
-      console.error("Error finalizing newsletter:", error);
-      res.status(500).send("Failed to finalize newsletter");
-    }
-  });
-
-  // Update the send endpoint
-  app.post("/api/loops/:id/newsletters/:newsletterId/send", requirePrivilegedAccess, async (req, res) => {
-    try {
-      const loopId = parseInt(req.params.id);
-      const newsletterId = parseInt(req.params.newsletterId);
-
-      // Get the newsletter and verify it exists and is finalized
-      const [newsletter] = await db.query.newsletters.findMany({
-        where: and(
-          eq(newsletters.id, newsletterId),
-          eq(newsletters.loopId, loopId),
-          eq(newsletters.status, 'finalized')
-        ),
-        limit: 1,
-      });
-
-      if (!newsletter) {
-        return res.status(404).send("Newsletter not found or not finalized");
-      }
-
-      // Get loop details for SMS
-      const [loop] = await db.query.loops.findMany({
-        where: eq(loops.id, loopId),
-        with: {
-          members: {
-            with: {
-              user: true,
-            },
-          },
-        },
-        limit: 1,
-      });
-
-      if (!loop) {
-        return res.status(404).send("Loop not found");
-      }
-
-      // Update newsletter status and send time
-      const [updatedNewsletter] = await db
-        .update(newsletters)
-        .set({
-          status: 'sent' as const,
-          sentAt: new Date(),
-        })
-        .where(eq(newsletters.id, newsletterId))
-        .returning();
-
-      if (!updatedNewsletter) {
-        throw new Error("Failed to update newsletter status");
-      }
-
-      // Send SMS to all loop members
-      const newsletterUrl = `${process.env.BASE_URL || ''}/newsletters/${newsletter.urlId}`;
-      const smsPromises = loop.members.map(async (member) => {
-        if (!member.user?.phoneNumber) return;
-
-        try {
-          await sendSMS(
-            member.user.phoneNumber,
-            `New update from ${loop.name}! Read it here: ${newsletterUrl}`
-          );
-        } catch (error) {
-          console.error(`Failed to send SMS to ${member.user.phoneNumber}:`, error);
-        }
-      });
-
-      // Wait for all SMS to be sent (or fail)
-      await Promise.all(smsPromises);
-
-      res.json(updatedNewsletter);
-    } catch (error) {
-      console.error("Error sending newsletter:", error);
-      res.status(500).send("Failed to send newsletter");
-    }
-  });
-
-  // Add PUT endpoint for updating newsletter content
   app.put("/api/loops/:id/newsletters/:newsletterId", requirePrivilegedAccess, async (req, res) => {
-    const user = req.user as User | undefined;
-    if (!user?.id) {
-      return res.status(401).send("Not authenticated");
-    }
-
     try {
       const { content } = req.body;
-      const loopId = parseInt(req.params.id);
-      const newsletterId = parseInt(req.params.newsletterId);
 
-      // Verify the newsletter exists and belongs to the specified loop
-      const [existingNewsletter] = await db.query.newsletters.findMany({
-        where: and(
-          eq(newsletters.id, newsletterId),
-          eq(newsletters.loopId, loopId)
-        ),
-        limit: 1,
-      });
-
-      if (!existingNewsletter) {
-        return res.status(404).send("Newsletter not found");
-      }
-
-      // Only allow updating draft newsletters
-      if (existingNewsletter.status !== 'draft') {
-        return res.status(400).send("Can only edit draft newsletters");
-      }
-
-      // Update the newsletter
       const [updatedNewsletter] = await db
         .update(newsletters)
         .set({
@@ -1310,20 +1006,58 @@ export function registerRoutes(app: Express): Server {
         })
         .where(
           and(
-            eq(newsletters.id, newsletterId),
-            eq(newsletters.loopId, loopId)
+            eq(newsletters.id, parseInt(req.params.newsletterId)),
+            eq(newsletters.loopId, parseInt(req.params.id))
           )
         )
         .returning();
 
       if (!updatedNewsletter) {
-        throw new Error("Failed to update newsletter");
+        return res.status(404).send("Newsletter not found");
       }
 
       res.json(updatedNewsletter);
     } catch (error) {
       console.error("Error updating newsletter:", error);
       res.status(500).send("Failed to update newsletter");
+    }
+  });
+
+  app.post("/api/loops/:id/newsletters/:newsletterId/send", requirePrivilegedAccess, async (req, res) => {
+    try {
+      const loopId = parseInt(req.params.id);
+      const newsletterId = parseInt(req.params.newsletterId);
+
+      // Get the newsletter and verify it exists
+      const [newsletter] = await db
+        .select()
+        .from(newsletters)
+        .where(
+          and(
+            eq(newsletters.id, newsletterId),
+            eq(newsletters.loopId, loopId)
+          )
+        )
+        .limit(1);
+
+      if (!newsletter) {
+        return res.status(404).send("Newsletter not found");
+      }
+
+      // Update the newsletter status to 'sent'
+      const [updatedNewsletter] = await db
+        .update(newsletters)
+        .set({
+          status: 'sent',
+          sentAt: new Date(),
+        })
+        .where(eq(newsletters.id, newsletterId))
+        .returning();
+
+      res.json(updatedNewsletter);
+    } catch (error) {
+      console.error("Error sending newsletter:", error);
+      res.status(500).send("Failed to send newsletter");
     }
   });
 
