@@ -3,11 +3,11 @@ import { createServer, type Server } from "http";
 import { setupAuth } from "./auth";
 import { db } from "@db";
 import { loops, loopMembers, updates, newsletters, users, type User } from "@db/schema";
-import { and, eq, desc, ilike } from "drizzle-orm";
-import { generateNewsletter, suggestNewsletterImprovements } from "./openai";
+import { and, eq, desc, ilike, type SQL } from "drizzle-orm";
+import { generateNewsletter } from "./openai";
 import { sendWelcomeMessage, sendSMS } from "./twilio";
-import { processAndSaveMedia } from "./storage";
 import { nanoid } from 'nanoid';
+import { processAndSaveMedia } from "./storage";
 import { randomBytes } from 'node:crypto';
 
 // Middleware to check if user has privileged access
@@ -1058,6 +1058,75 @@ export function registerRoutes(app: Express): Server {
     } catch (error) {
       console.error("Error sending newsletter:", error);
       res.status(500).send("Failed to send newsletter");
+    }
+  });
+
+  app.post("/api/admin/loops/:id/bulk-sms", requirePrivilegedAccess, async (req, res) => {
+    try {
+      const { message } = req.body;
+      const loopId = parseInt(req.params.id);
+
+      if (!message?.trim()) {
+        return res.status(400).send("Message is required");
+      }
+
+      if (isNaN(loopId)) {
+        return res.status(400).send("Invalid loop ID");
+      }
+
+      // Get the loop with its members
+      const loop = await db.query.loops.findFirst({
+        where: eq(loops.id, loopId),
+        with: {
+          members: {
+            with: {
+              user: {
+                columns: {
+                  phoneNumber: true,
+                }
+              }
+            }
+          }
+        },
+        columns: {
+          id: true,
+          name: true,
+        }
+      });
+
+      if (!loop) {
+        return res.status(404).send("Loop not found");
+      }
+
+      // Get all members with valid phone numbers
+      const validMembers = loop.members.filter((member) =>
+        member.user?.phoneNumber && member.user.phoneNumber.trim()
+      );
+
+      if (validMembers.length === 0) {
+        return res.status(400).send("No members with valid phone numbers found");
+      }
+
+      // Send SMS to each member
+      const results = await Promise.allSettled(
+        validMembers.map(member =>
+          member.user?.phoneNumber ? sendSMS(member.user.phoneNumber, message) : Promise.reject()
+        )
+      );
+
+      const succeeded = results.filter(r => r.status === 'fulfilled').length;
+      const failed = results.filter(r => r.status === 'rejected').length;
+
+      res.json({
+        message: `Successfully sent ${succeeded} messages${failed > 0 ? `, ${failed} failed` : ''}`,
+        succeeded,
+        failed,
+        total: validMembers.length
+      });
+
+    } catch (error) {
+      console.error("Error sending bulk SMS:", error);
+      res.status(500).send(error instanceof Error ? error.message : "Failed to send messages");
     }
   });
 

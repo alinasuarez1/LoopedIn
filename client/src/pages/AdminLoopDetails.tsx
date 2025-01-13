@@ -20,6 +20,16 @@ import { Button } from "@/components/ui/button";
 import { Loader2, ExternalLink } from "lucide-react";
 import { format } from "date-fns";
 import { useToast } from "@/hooks/use-toast";
+import { useState } from "react";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import { Textarea } from "@/components/ui/textarea";
+import { MessageSquare } from "lucide-react";
 
 interface LoopDetails {
   id: number;
@@ -61,7 +71,7 @@ interface LoopDetails {
     content: string;
     sentAt: string;
     urlId: string;
-    status: 'draft' | 'sent'; // Added status field
+    status: 'draft' | 'sent';
   }>;
 }
 
@@ -112,6 +122,100 @@ export default function AdminLoopDetails() {
     },
   });
 
+  const [isSMSDialogOpen, setIsSMSDialogOpen] = useState(false);
+  const [messageContent, setMessageContent] = useState("");
+  const [isSending, setIsSending] = useState(false);
+
+  const sendBulkSMS = async () => {
+    if (!messageContent.trim()) {
+      toast({
+        title: "Error",
+        description: "Please enter a message to send",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsSending(true);
+    try {
+      const response = await fetch(`/api/admin/loops/${id}/bulk-sms`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ message: messageContent }),
+        credentials: "include",
+      });
+
+      if (!response.ok) {
+        throw new Error(await response.text());
+      }
+
+      const result = await response.json();
+
+      toast({
+        title: "Success",
+        description: result.message,
+      });
+
+      setMessageContent("");
+      setIsSMSDialogOpen(false);
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : "Failed to send messages",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSending(false);
+    }
+  };
+
+  const BulkSMSDialog = () => {
+    if (!loop) return null;
+
+    return (
+      <Dialog open={isSMSDialogOpen} onOpenChange={setIsSMSDialogOpen}>
+        <DialogTrigger asChild>
+          <Button variant="outline" className="gap-2">
+            <MessageSquare className="h-4 w-4" />
+            Send Group Message
+          </Button>
+        </DialogTrigger>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Send Message to All Members</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <p className="text-sm text-muted-foreground">
+              This message will be sent to all {loop.members.length} members of {loop.name}.
+            </p>
+            <Textarea
+              value={messageContent}
+              onChange={(e) => setMessageContent(e.target.value)}
+              placeholder="Type your message here..."
+              className="min-h-[100px]"
+            />
+            <Button 
+              onClick={sendBulkSMS} 
+              className="w-full"
+              disabled={isSending || !messageContent.trim()}
+            >
+              {isSending ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Sending...
+                </>
+              ) : (
+                'Send Message'
+              )}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+    );
+  };
+
   if (error) {
     return (
       <div className="container mx-auto p-4">
@@ -143,19 +247,22 @@ export default function AdminLoopDetails() {
     <div className="container mx-auto p-4 space-y-6">
       <div className="flex justify-between items-center">
         <h1 className="text-3xl font-bold">{loop.name}</h1>
-        <Button
-          onClick={handleGenerateNewsletter}
-          disabled={generateNewsletterMutation.isPending}
-        >
-          {generateNewsletterMutation.isPending ? (
-            <>
-              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              Generating...
-            </>
-          ) : (
-            'Generate Newsletter'
-          )}
-        </Button>
+        <div className="flex gap-2">
+          <BulkSMSDialog />
+          <Button
+            onClick={handleGenerateNewsletter}
+            disabled={generateNewsletterMutation.isPending}
+          >
+            {generateNewsletterMutation.isPending ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Generating...
+              </>
+            ) : (
+              'Generate Newsletter'
+            )}
+          </Button>
+        </div>
       </div>
 
       {/* Loop Info */}
