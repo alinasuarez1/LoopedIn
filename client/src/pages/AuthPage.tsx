@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import { useUser } from "../hooks/use-user";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
@@ -20,9 +20,9 @@ import 'react-phone-input-2/lib/style.css';
 type AuthFormData = {
   email: string;
   password: string;
-  firstName?: string;
-  lastName?: string;
-  phoneNumber?: string;
+  firstName: string;
+  lastName: string;
+  phoneNumber: string;
 };
 
 export default function AuthPage() {
@@ -30,19 +30,32 @@ export default function AuthPage() {
   const { login, register } = useUser();
   const { toast } = useToast();
   const [, setLocation] = useLocation();
-  const form = useForm<AuthFormData>();
-  const [phone, setPhone] = useState("");
 
-  const onSubmit = async (data: AuthFormData) => {
+  const form = useForm<AuthFormData>({
+    mode: 'onBlur',
+    reValidateMode: 'onBlur',
+    defaultValues: {
+      email: '',
+      password: '',
+      firstName: '',
+      lastName: '',
+      phoneNumber: ''
+    }
+  });
+
+  const onPhoneChange = useCallback((phone: string) => {
+    form.setValue('phoneNumber', phone, { 
+      shouldTouch: true,
+      shouldDirty: true,
+      shouldValidate: false 
+    });
+  }, [form]);
+
+  const onSubmit = useCallback(async (data: AuthFormData) => {
     try {
-      const formData = {
-        ...data,
-        phoneNumber: phone // Use the phone state instead of form data
-      };
-
       const result = isLogin 
-        ? await login(formData)
-        : await register(formData);
+        ? await login(data)
+        : await register(data);
 
       if (!result.ok) {
         toast({
@@ -61,7 +74,7 @@ export default function AuthPage() {
         variant: "destructive",
       });
     }
-  };
+  }, [isLogin, login, register, setLocation, toast]);
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-background p-4">
@@ -112,8 +125,8 @@ export default function AuthPage() {
                   <Label htmlFor="phoneNumber">Phone Number</Label>
                   <PhoneInput
                     country={'us'}
-                    value={phone}
-                    onChange={setPhone}
+                    value={form.watch('phoneNumber')}
+                    onChange={onPhoneChange}
                     containerClass="!w-full"
                     inputClass="!w-full !h-10 !py-2 !pl-12 !pr-3 !text-base !bg-background !border-input hover:!bg-accent hover:!text-accent-foreground !rounded-md"
                     buttonClass="!absolute !left-0 !h-full !bg-background !border-input hover:!bg-accent hover:!text-accent-foreground !rounded-l-md"
