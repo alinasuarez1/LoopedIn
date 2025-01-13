@@ -28,7 +28,7 @@ export async function sendWelcomeMessage(phoneNumber: string, loopName: string) 
 
   try {
     await client.messages.create({
-      body: `Welcome to ${loopName}! 🎉 You're now connected with your group. Share your updates by replying to this message!`,
+      body: `Welcome to ${loopName}! 🎉 You're now connected with your group. Share your updates by replying to this message!\n\nGet started with our quick guide: https://docs.google.com/document/d/e/2PACX-1vTluWn3opUaUj9_Zfz08vc0aHR13ipH7tGwvXDFBvgYHuHUWpG-yk3_EXJRlli2zfVXkph23GlBQ9us/pub`,
       from: fromNumber,
       to: phoneNumber
     });
