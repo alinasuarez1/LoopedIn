@@ -19,7 +19,7 @@ export const users = pgTable("users", {
   phoneNumber: text("phone_number").unique().notNull(),
   isAdmin: boolean("is_admin").default(false),
   isPrivileged: boolean("is_privileged").default(false),
-  createdAt: timestamp("created_at", { mode: 'date' }).default(sql`CURRENT_TIMESTAMP`).notNull(),
+  createdAt: timestamp("created_at").default(sql`CURRENT_TIMESTAMP`).notNull(),
 });
 
 export const loops = pgTable("loops", {
@@ -30,7 +30,7 @@ export const loops = pgTable("loops", {
   context: text("context"),
   reminderSchedule: jsonb("reminder_schedule").$type<ReminderSchedule>().notNull(),
   creatorId: integer("creator_id").references(() => users.id),
-  createdAt: timestamp("created_at", { mode: 'date' }).default(sql`CURRENT_TIMESTAMP`).notNull(),
+  createdAt: timestamp("created_at").default(sql`CURRENT_TIMESTAMP`).notNull(),
 });
 
 export const loopMembers = pgTable("loop_members", {
@@ -38,7 +38,7 @@ export const loopMembers = pgTable("loop_members", {
   loopId: integer("loop_id").references(() => loops.id, { onDelete: 'cascade' }),
   userId: integer("user_id").references(() => users.id, { onDelete: 'cascade' }),
   context: text("context"),
-  createdAt: timestamp("created_at", { mode: 'date' }).default(sql`CURRENT_TIMESTAMP`).notNull(),
+  createdAt: timestamp("created_at").default(sql`CURRENT_TIMESTAMP`).notNull(),
 });
 
 export const updates = pgTable("updates", {
@@ -47,7 +47,7 @@ export const updates = pgTable("updates", {
   userId: integer("user_id").references(() => users.id),
   content: text("content").notNull(),
   mediaUrls: jsonb("media_urls").$type<string[]>().default([]),
-  createdAt: timestamp("created_at", { mode: 'date' }).default(sql`CURRENT_TIMESTAMP`).notNull(),
+  createdAt: timestamp("created_at").default(sql`CURRENT_TIMESTAMP`).notNull(),
 });
 
 export const newsletters = pgTable("newsletters", {
@@ -56,9 +56,9 @@ export const newsletters = pgTable("newsletters", {
   content: text("content").notNull(),
   status: text("status", { enum: ['draft', 'finalized', 'sent'] }).$type<NewsletterStatus>().notNull().default('draft'),
   urlId: text("url_id").notNull().unique(),
-  sentAt: timestamp("sent_at", { mode: 'date' }),
-  createdAt: timestamp("created_at", { mode: 'date' }).default(sql`CURRENT_TIMESTAMP`).notNull(),
-  updatedAt: timestamp("updated_at", { mode: 'date' }).default(sql`CURRENT_TIMESTAMP`).notNull(),
+  sentAt: timestamp("sent_at"),
+  createdAt: timestamp("created_at").default(sql`CURRENT_TIMESTAMP`).notNull(),
+  updatedAt: timestamp("updated_at").default(sql`CURRENT_TIMESTAMP`).notNull(),
 });
 
 // Define relations
