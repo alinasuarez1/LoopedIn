@@ -52,8 +52,8 @@ type LoopSettingsForm = {
   vibe: string[];
 };
 
-const AddMemberDialog = ({ isOpen, onOpenChange, onSubmit }: { 
-  isOpen: boolean; 
+const AddMemberDialog = ({ isOpen, onOpenChange, onSubmit }: {
+  isOpen: boolean;
   onOpenChange: (open: boolean) => void;
   onSubmit: (data: AddMemberForm) => Promise<void>;
 }) => {
@@ -70,10 +70,10 @@ const AddMemberDialog = ({ isOpen, onOpenChange, onSubmit }: {
   });
 
   const onPhoneChange = useCallback((phone: string) => {
-    form.setValue('phoneNumber', phone, { 
+    form.setValue('phoneNumber', phone, {
       shouldTouch: true,
       shouldDirty: true,
-      shouldValidate: false 
+      shouldValidate: false
     });
   }, [form]);
 
@@ -240,7 +240,7 @@ export default function LoopManager() {
                 Created on {new Date(loop.createdAt!).toLocaleDateString()}
               </CardDescription>
             </div>
-            <AddMemberDialog 
+            <AddMemberDialog
               isOpen={isDialogOpen}
               onOpenChange={setIsDialogOpen}
               onSubmit={onSubmit}
@@ -258,7 +258,7 @@ export default function LoopManager() {
               <TabsContent value="members" className="mt-4">
                 <div className="flex justify-between items-center mb-4">
                   <h3 className="text-lg font-semibold">Members</h3>
-                  <AddMemberDialog 
+                  <AddMemberDialog
                     isOpen={isDialogOpen}
                     onOpenChange={setIsDialogOpen}
                     onSubmit={onSubmit}
@@ -350,9 +350,14 @@ export default function LoopManager() {
                       <Card key={update.id}>
                         <CardContent className="pt-4">
                           <div className="flex justify-between items-start">
-                            <p className="text-sm text-muted-foreground">
-                              {new Date(update.createdAt!).toLocaleString()}
-                            </p>
+                            <div className="flex flex-col">
+                              <p className="font-medium">
+                                {update.user?.firstName} {update.user?.lastName}
+                              </p>
+                              <p className="text-sm text-muted-foreground">
+                                {new Date(update.createdAt!).toLocaleString()}
+                              </p>
+                            </div>
                             <AlertDialog>
                               <AlertDialogTrigger asChild>
                                 <Button
@@ -416,7 +421,7 @@ export default function LoopManager() {
                                     onError={(e) => {
                                       console.error('Failed to load image:', url);
                                       const target = e.target as HTMLImageElement;
-                                      target.onerror = null; 
+                                      target.onerror = null;
                                       target.src = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Crect width='18' height='18' x='3' y='3' rx='2' ry='2'%3E%3C/rect%3E%3Ccircle cx='9' cy='9' r='2'%3E%3C/circle%3E%3Cpath d='m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21'%3E%3C/path%3E%3C/svg%3E";
                                     }}
                                   />
@@ -443,7 +448,7 @@ export default function LoopManager() {
                           onClick={() => {
                             setIsEditingSettings(false);
                             settingsForm.reset({
-                              context: loop.context,
+                              context: loop.context ?? undefined,
                               vibe: loop.vibe,
                             });
                           }}
