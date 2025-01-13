@@ -5,7 +5,7 @@ import session from "express-session";
 import createMemoryStore from "memorystore";
 import { scrypt, randomBytes, timingSafeEqual } from "crypto";
 import { promisify } from "util";
-import { users, type User } from "@db/schema";
+import { users, type SelectUser } from "@db/schema";
 import { db } from "@db";
 import { eq } from "drizzle-orm";
 
@@ -31,10 +31,7 @@ const crypto = {
 // extend express user object with our schema
 declare global {
   namespace Express {
-    // eslint-disable-next-line @typescript-eslint/no-empty-interface
-    interface User extends Omit<User, 'id'> {
-      id: number;
-    }
+    interface User extends SelectUser {}
   }
 }
 
@@ -91,7 +88,7 @@ export function setupAuth(app: Express) {
   );
 
   passport.serializeUser((user, done) => {
-    done(null, (user as User).id);
+    done(null, user.id);
   });
 
   passport.deserializeUser(async (id: number, done) => {
@@ -111,18 +108,58 @@ export function setupAuth(app: Express) {
     try {
       const { password, firstName, lastName, email, phoneNumber } = req.body;
 
-      // Check if user already exists
+      // First check if user exists with this phone number
       const [existingUser] = await db
+        .select()
+        .from(users)
+        .where(eq(users.phoneNumber, phoneNumber))
+        .limit(1);
+
+      if (existingUser) {
+        // If user exists and is already an admin, return error
+        if (existingUser.isAdmin) {
+          return res.status(400).send("An account with this phone number already exists. Please login with your existing account.");
+        }
+
+        // If user exists but is not admin, update their details
+        const hashedPassword = await crypto.hash(password);
+        const [updatedUser] = await db
+          .update(users)
+          .set({
+            password: hashedPassword,
+            firstName,
+            lastName,
+            email,
+            isAdmin: true
+          })
+          .where(eq(users.id, existingUser.id))
+          .returning();
+
+        // Log the user in after update
+        req.login(updatedUser, (err) => {
+          if (err) {
+            return next(err);
+          }
+          return res.json({
+            message: "Registration successful",
+            user: updatedUser,
+          });
+        });
+        return;
+      }
+
+      // Check if email already exists (only for new users)
+      const [existingEmail] = await db
         .select()
         .from(users)
         .where(eq(users.email, email))
         .limit(1);
 
-      if (existingUser) {
+      if (existingEmail) {
         return res.status(400).send("Email already exists");
       }
 
-      // Hash the password
+      // Hash the password for new user
       const hashedPassword = await crypto.hash(password);
 
       // Create the new user
@@ -134,6 +171,7 @@ export function setupAuth(app: Express) {
           lastName,
           email,
           phoneNumber,
+          isAdmin: true,
         })
         .returning();
 
