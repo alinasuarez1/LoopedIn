@@ -1,6 +1,6 @@
+import { useCallback } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
-import { useParams } from "wouter";
-import { useLocation } from "wouter";
+import { useParams, useLocation } from "wouter";
 import {
   Card,
   CardContent,
@@ -20,7 +20,8 @@ import { Button } from "@/components/ui/button";
 import { Loader2, ExternalLink } from "lucide-react";
 import { format } from "date-fns";
 import { useToast } from "@/hooks/use-toast";
-import { useState } from "react";
+import { BulkSMSDialog } from "@/components/BulkSMSDialog";
+import {useState} from "react";
 import {
   Dialog,
   DialogContent,
@@ -29,6 +30,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
+import { useForm } from "react-hook-form";
 import { MessageSquare } from "lucide-react";
 
 interface LoopDetails {
@@ -71,16 +73,17 @@ interface LoopDetails {
     content: string;
     sentAt: string;
     urlId: string;
-    status: 'draft' | 'sent';
+    status: "draft" | "sent";
   }>;
 }
+
 
 export default function AdminLoopDetails() {
   const { id } = useParams<{ id: string }>();
   const { toast } = useToast();
   const [, setLocation] = useLocation();
 
-  const { data: loop, isLoading, error, refetch } = useQuery<LoopDetails>({
+  const { data: loop, isLoading, error } = useQuery<LoopDetails>({
     queryKey: [`/api/admin/loops/${id}`],
     retry: false,
   });
@@ -88,8 +91,8 @@ export default function AdminLoopDetails() {
   const generateNewsletterMutation = useMutation({
     mutationFn: async () => {
       const response = await fetch(`/api/loops/${id}/newsletters/generate`, {
-        method: 'POST',
-        credentials: 'include',
+        method: "POST",
+        credentials: "include",
       });
 
       if (!response.ok) {
@@ -116,105 +119,15 @@ export default function AdminLoopDetails() {
     onError: (error) => {
       toast({
         title: "Error",
-        description: error.message || "Failed to generate newsletter",
+        description: error instanceof Error ? error.message : "Failed to generate newsletter",
         variant: "destructive",
       });
     },
   });
 
-  const [isSMSDialogOpen, setIsSMSDialogOpen] = useState(false);
-  const [messageContent, setMessageContent] = useState("");
-  const [isSending, setIsSending] = useState(false);
-
-  const sendBulkSMS = async () => {
-    if (!messageContent.trim()) {
-      toast({
-        title: "Error",
-        description: "Please enter a message to send",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    setIsSending(true);
-    try {
-      const response = await fetch(`/api/admin/loops/${id}/bulk-sms`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ message: messageContent }),
-        credentials: "include",
-      });
-
-      if (!response.ok) {
-        throw new Error(await response.text());
-      }
-
-      const result = await response.json();
-
-      toast({
-        title: "Success",
-        description: result.message,
-      });
-
-      setMessageContent("");
-      setIsSMSDialogOpen(false);
-    } catch (error) {
-      toast({
-        title: "Error",
-        description: error instanceof Error ? error.message : "Failed to send messages",
-        variant: "destructive",
-      });
-    } finally {
-      setIsSending(false);
-    }
-  };
-
-  const BulkSMSDialog = () => {
-    if (!loop) return null;
-
-    return (
-      <Dialog open={isSMSDialogOpen} onOpenChange={setIsSMSDialogOpen}>
-        <DialogTrigger asChild>
-          <Button variant="outline" className="gap-2">
-            <MessageSquare className="h-4 w-4" />
-            Send Group Message
-          </Button>
-        </DialogTrigger>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Send Message to All Members</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4">
-            <p className="text-sm text-muted-foreground">
-              This message will be sent to all {loop.members.length} members of {loop.name}.
-            </p>
-            <Textarea
-              value={messageContent}
-              onChange={(e) => setMessageContent(e.target.value)}
-              placeholder="Type your message here..."
-              className="min-h-[100px]"
-            />
-            <Button 
-              onClick={sendBulkSMS} 
-              className="w-full"
-              disabled={isSending || !messageContent.trim()}
-            >
-              {isSending ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Sending...
-                </>
-              ) : (
-                'Send Message'
-              )}
-            </Button>
-          </div>
-        </DialogContent>
-      </Dialog>
-    );
-  };
+  const handleGenerateNewsletter = useCallback(() => {
+    generateNewsletterMutation.mutate();
+  }, [generateNewsletterMutation]);
 
   if (error) {
     return (
@@ -224,7 +137,7 @@ export default function AdminLoopDetails() {
             <CardTitle className="text-destructive">Error</CardTitle>
           </CardHeader>
           <CardContent>
-            <p>{error.message || "Failed to load loop details"}</p>
+            <p>{error instanceof Error ? error.message : "Failed to load loop details"}</p>
           </CardContent>
         </Card>
       </div>
@@ -239,16 +152,16 @@ export default function AdminLoopDetails() {
     );
   }
 
-  const handleGenerateNewsletter = () => {
-    generateNewsletterMutation.mutate();
-  };
-
   return (
     <div className="container mx-auto p-4 space-y-6">
       <div className="flex justify-between items-center">
         <h1 className="text-3xl font-bold">{loop.name}</h1>
         <div className="flex gap-2">
-          <BulkSMSDialog />
+          <BulkSMSDialog
+            loopId={parseInt(id)}
+            loopName={loop.name}
+            memberCount={loop.members.length}
+          />
           <Button
             onClick={handleGenerateNewsletter}
             disabled={generateNewsletterMutation.isPending}
@@ -259,7 +172,7 @@ export default function AdminLoopDetails() {
                 Generating...
               </>
             ) : (
-              'Generate Newsletter'
+              "Generate Newsletter"
             )}
           </Button>
         </div>
@@ -392,11 +305,13 @@ export default function AdminLoopDetails() {
                   </span>
                 </div>
                 <div className="flex items-center gap-2">
-                  {newsletter.status === 'draft' ? (
+                  {newsletter.status === "draft" ? (
                     <Button
                       variant="outline"
                       size="sm"
-                      onClick={() => setLocation(`/admin/loops/${id}/newsletters/${newsletter.id}`)}
+                      onClick={() =>
+                        setLocation(`/admin/loops/${id}/newsletters/${newsletter.id}`)
+                      }
                     >
                       Edit Draft
                     </Button>
