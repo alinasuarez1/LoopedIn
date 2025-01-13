@@ -1,14 +1,12 @@
 import { pgTable, text, serial, integer, boolean, timestamp, jsonb } from "drizzle-orm/pg-core";
 import { createInsertSchema, createSelectSchema } from "drizzle-zod";
 import { relations } from "drizzle-orm";
-import { sql } from "drizzle-orm";
+import { nanoid } from 'nanoid';
 
 export type ReminderSchedule = {
   day: string;
   time: string; // 24-hour format "HH:mm"
 }[];
-
-export type NewsletterStatus = 'draft' | 'finalized' | 'sent';
 
 export const users = pgTable("users", {
   id: serial("id").primaryKey(),
@@ -19,7 +17,7 @@ export const users = pgTable("users", {
   phoneNumber: text("phone_number").unique().notNull(),
   isAdmin: boolean("is_admin").default(false),
   isPrivileged: boolean("is_privileged").default(false),
-  createdAt: timestamp("created_at").default(sql`CURRENT_TIMESTAMP`).notNull(),
+  createdAt: timestamp("created_at").defaultNow(),
 });
 
 export const loops = pgTable("loops", {
@@ -30,38 +28,37 @@ export const loops = pgTable("loops", {
   context: text("context"),
   reminderSchedule: jsonb("reminder_schedule").$type<ReminderSchedule>().notNull(),
   creatorId: integer("creator_id").references(() => users.id),
-  createdAt: timestamp("created_at").default(sql`CURRENT_TIMESTAMP`).notNull(),
+  createdAt: timestamp("created_at").defaultNow(),
 });
 
 export const loopMembers = pgTable("loop_members", {
   id: serial("id").primaryKey(),
-  loopId: integer("loop_id").references(() => loops.id, { onDelete: 'cascade' }),
-  userId: integer("user_id").references(() => users.id, { onDelete: 'cascade' }),
+  loopId: integer("loop_id").references(() => loops.id),
+  userId: integer("user_id").references(() => users.id),
   context: text("context"),
-  createdAt: timestamp("created_at").default(sql`CURRENT_TIMESTAMP`).notNull(),
+  createdAt: timestamp("created_at").defaultNow(),
 });
 
 export const updates = pgTable("updates", {
   id: serial("id").primaryKey(),
-  loopId: integer("loop_id").references(() => loops.id, { onDelete: 'cascade' }),
+  loopId: integer("loop_id").references(() => loops.id),
   userId: integer("user_id").references(() => users.id),
   content: text("content").notNull(),
   mediaUrls: jsonb("media_urls").$type<string[]>().default([]),
-  createdAt: timestamp("created_at").default(sql`CURRENT_TIMESTAMP`).notNull(),
+  createdAt: timestamp("created_at").defaultNow(),
 });
 
 export const newsletters = pgTable("newsletters", {
   id: serial("id").primaryKey(),
-  loopId: integer("loop_id").references(() => loops.id, { onDelete: 'cascade' }).notNull(),
+  loopId: integer("loop_id").notNull().references(() => loops.id),
   content: text("content").notNull(),
-  status: text("status", { enum: ['draft', 'finalized', 'sent'] }).$type<NewsletterStatus>().notNull().default('draft'),
+  status: text("status").notNull().default('draft'),
   urlId: text("url_id").notNull().unique(),
   sentAt: timestamp("sent_at"),
-  createdAt: timestamp("created_at").default(sql`CURRENT_TIMESTAMP`).notNull(),
-  updatedAt: timestamp("updated_at").default(sql`CURRENT_TIMESTAMP`).notNull(),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
 });
 
-// Define relations
 export const loopsRelations = relations(loops, ({ one, many }) => ({
   creator: one(users, {
     fields: [loops.creatorId],
@@ -101,7 +98,6 @@ export const newslettersRelations = relations(newsletters, ({ one }) => ({
   }),
 }));
 
-// Create Zod schemas for validation
 export const insertUserSchema = createInsertSchema(users);
 export const selectUserSchema = createSelectSchema(users);
 export const insertLoopSchema = createInsertSchema(loops);
@@ -113,7 +109,6 @@ export const selectUpdateSchema = createSelectSchema(updates);
 export const insertNewsletterSchema = createInsertSchema(newsletters);
 export const selectNewsletterSchema = createSelectSchema(newsletters);
 
-// Export types
 export type User = typeof users.$inferSelect;
 export type InsertUser = typeof users.$inferInsert;
 export type Loop = typeof loops.$inferSelect;
