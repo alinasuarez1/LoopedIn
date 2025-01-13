@@ -1,5 +1,5 @@
 import { useQueryClient } from "@tanstack/react-query";
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 import { useLoop } from "../hooks/use-loops";
 import { useParams, useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
@@ -44,6 +44,7 @@ type AddMemberForm = {
   lastName: string;
   email?: string;
   context?: string;
+  phoneNumber: string;
 };
 
 type LoopSettingsForm = {
@@ -77,8 +78,17 @@ export default function LoopManager() {
   const { id } = useParams<{ id: string }>();
   const { loop, isLoading, updateLoop, deleteLoop } = useLoop(parseInt(id));
   const { toast } = useToast();
-  const form = useForm<AddMemberForm>();
-  const [phone, setPhone] = useState("");
+  const form = useForm<AddMemberForm>({
+    mode: 'onBlur',
+    reValidateMode: 'onBlur',
+    defaultValues: {
+      firstName: '',
+      lastName: '',
+      email: '',
+      context: '',
+      phoneNumber: ''
+    }
+  });
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [, setLocation] = useLocation();
   const [isEditingSettings, setIsEditingSettings] = useState(false);
@@ -90,6 +100,14 @@ export default function LoopManager() {
     },
   });
 
+  const onPhoneChange = useCallback((phone: string) => {
+    form.setValue('phoneNumber', phone, { 
+      shouldTouch: true,
+      shouldDirty: true,
+      shouldValidate: false 
+    });
+  }, [form]);
+
   const onSubmit = async (data: AddMemberForm) => {
     try {
       const response = await fetch(`/api/loops/${id}/members`, {
@@ -97,10 +115,7 @@ export default function LoopManager() {
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-          ...data,
-          phoneNumber: phone,
-        }),
+        body: JSON.stringify(data),
         credentials: 'include',
       });
 
@@ -117,7 +132,6 @@ export default function LoopManager() {
       });
 
       form.reset();
-      setPhone("");
       setIsDialogOpen(false);
     } catch (error) {
       toast({
@@ -174,8 +188,8 @@ export default function LoopManager() {
             <Label htmlFor="phone">Phone Number</Label>
             <PhoneInput
               country={'us'}
-              value={phone}
-              onChange={setPhone}
+              value={form.watch('phoneNumber')}
+              onChange={onPhoneChange}
               containerClass="!w-full"
               inputClass="!w-full !h-10 !py-2 !pl-12 !pr-3 !text-base !bg-background !border-input hover:!bg-accent hover:!text-accent-foreground !rounded-md"
               buttonClass="!absolute !left-0 !h-full !bg-background !border-input hover:!bg-accent hover:!text-accent-foreground !rounded-l-md"
