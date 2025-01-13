@@ -50,6 +50,7 @@ interface LoopDetails {
   };
   members: Array<{
     id: number;
+    nickname?: string;
     user: {
       firstName: string;
       lastName: string;
@@ -228,6 +229,11 @@ export default function AdminLoopDetails() {
                 <TableRow key={member.id}>
                   <TableCell>
                     {member.user.firstName} {member.user.lastName}
+                    {member.nickname && (
+                      <span className="text-sm text-muted-foreground ml-2">
+                        ({member.nickname})
+                      </span>
+                    )}
                   </TableCell>
                   <TableCell>{member.user.email || "—"}</TableCell>
                   <TableCell>{member.user.phoneNumber}</TableCell>
