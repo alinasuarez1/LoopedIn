@@ -45,7 +45,6 @@ type AddMemberForm = {
   email?: string;
   context?: string;
   phoneNumber: string;
-  nickname?: string;  // Added nickname field
 };
 
 type LoopSettingsForm = {
@@ -66,8 +65,7 @@ const AddMemberDialog = ({ isOpen, onOpenChange, onSubmit }: {
       lastName: '',
       email: '',
       context: '',
-      phoneNumber: '',
-      nickname: ''  // Added default value
+      phoneNumber: ''
     }
   });
 
@@ -108,14 +106,6 @@ const AddMemberDialog = ({ isOpen, onOpenChange, onSubmit }: {
             <Input
               id="lastName"
               {...form.register("lastName", { required: true })}
-            />
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="nickname">Nickname (Optional)</Label>
-            <Input
-              id="nickname"
-              {...form.register("nickname")}
-              placeholder="How should we call them in the group?"
             />
           </div>
           <div className="space-y-2">
@@ -283,11 +273,6 @@ export default function LoopManager() {
                             <div className="flex flex-col gap-1">
                               <p className="font-medium">
                                 {member.user?.firstName} {member.user?.lastName}
-                                {member.nickname && (
-                                  <span className="text-sm text-muted-foreground ml-2">
-                                    ({member.nickname})
-                                  </span>
-                                )}
                               </p>
                               {member.context && (
                                 <p className="text-sm text-muted-foreground">
