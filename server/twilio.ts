@@ -20,7 +20,7 @@ if (hasCredentials) {
   console.warn('Twilio credentials not configured. SMS features are disabled.');
 }
 
-export async function sendWelcomeMessage(phoneNumber: string, loopName: string) {
+export async function sendWelcomeMessage(phoneNumber: string, loopName: string, memberFirstName: string, inviterName: string) {
   if (!hasCredentials || !client || !fromNumber) {
     console.warn('Twilio not configured, skipping welcome message');
     return;
@@ -28,7 +28,16 @@ export async function sendWelcomeMessage(phoneNumber: string, loopName: string) 
 
   try {
     await client.messages.create({
-      body: `Welcome to ${loopName}! 🎉 You're now connected with your group. Share your updates by replying to this message!\n\nGet started with our quick guide: https://docs.google.com/document/d/e/2PACX-1vTluWn3opUaUj9_Zfz08vc0aHR13ipH7tGwvXDFBvgYHuHUWpG-yk3_EXJRlli2zfVXkph23GlBQ9us/pub`,
+      body: `Hi ${memberFirstName}! 🎉 Looks like you've been LoopedIn to ${loopName} by ${inviterName}—welcome!
+
+No need to sign up, all you have to do is reply to this message with your updates, photos, or even your random shower thoughts—no pressure, no perfection required.
+
+In a couple weeks, we'll transform everyones updates into a delightful newsletter for everyone to enjoy.
+
+📌 Pro Tip: Save this number as LoopedIn in your contacts so you don't miss a thing! Reply STOP to opt out.
+
+Still confused? Check out our quick getting started guide:
+https://docs.google.com/document/d/e/2PACX-1vTluWn3opUaUj9_Zfz08vc0aHR13ipH7tGwvXDFBvgYHuHUWpG-yk3_EXJRlli2zfVXkph23GlBQ9us/pub`,
       from: fromNumber,
       to: phoneNumber
     });

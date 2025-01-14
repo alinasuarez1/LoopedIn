@@ -3,7 +3,7 @@ import { createServer, type Server } from "http";
 import { setupAuth } from "./auth";
 import { db } from "@db";
 import { loops, loopMembers, updates, newsletters, users, type User } from "@db/schema";
-import { and, eq, desc, ilike, type SQL } from "drizzle-orm";
+import { and, eq, desc, ilike } from "drizzle-orm";
 import { generateNewsletter } from "./openai";
 import { sendWelcomeMessage, sendSMS } from "./twilio";
 import { nanoid } from 'nanoid';
@@ -33,7 +33,7 @@ export function registerRoutes(app: Express): Server {
     const { search, sort = "recent" } = req.query;
 
     try {
-      let baseQuery = {
+      let query = db.query.loops.findMany({
         with: {
           creator: {
             columns: {
@@ -54,22 +54,19 @@ export function registerRoutes(app: Express): Server {
             }
           },
           newsletters: true
-        }
-      };
-
-      let whereClause = undefined;
+        },
+        orderBy: sort === "recent" ? [desc(loops.createdAt)] : undefined,
+      });
 
       // Apply search filter if provided
       if (search && typeof search === 'string' && search.trim()) {
-        whereClause = ilike(loops.name, `%${search.trim()}%`);
+        query = db.query.loops.findMany({
+          ...query,
+          where: ilike(loops.name, `%${search.trim()}%`),
+        });
       }
 
-      // Construct the query
-      const allLoops = await db.query.loops.findMany({
-        ...baseQuery,
-        ...(whereClause ? { where: whereClause } : {}),
-        orderBy: sort === "recent" ? [desc(loops.createdAt)] : undefined,
-      });
+      const allLoops = await query;
 
       // Transform data for the frontend
       const loopsWithStats = allLoops.map(loop => ({
@@ -386,7 +383,7 @@ export function registerRoutes(app: Express): Server {
         });
 
       // Try to send welcome message, but don't block on failure
-      sendWelcomeMessage(user.phoneNumber, loop.name)
+      sendWelcomeMessage(user.phoneNumber, loop.name, user.firstName, "Loop Creator")
         .catch(error => console.warn('Failed to send welcome SMS:', error));
 
       // Fetch the complete loop with members
@@ -525,9 +522,11 @@ export function registerRoutes(app: Express): Server {
 
     try {
       // First check if user already exists with this phone number
-      let memberUser = await db.query.users.findFirst({
+      const existingUser = await db.query.users.findFirst({
         where: eq(users.phoneNumber, phoneNumber),
       });
+
+      let memberUser = existingUser;
 
       if (!memberUser) {
         // Generate a random temporary password for new users
@@ -564,10 +563,12 @@ export function registerRoutes(app: Express): Server {
         return res.status(400).send("User is already a member of this loop");
       }
 
-      // Get loop details for welcome message
-      const [loop] = await db.query.loops.findMany({
+      // Get loop details and creator info for welcome message
+      const loop = await db.query.loops.findFirst({
         where: eq(loops.id, parseInt(req.params.id)),
-        limit: 1,
+        with: {
+          creator: true,
+        },
       });
 
       if (!loop) {
@@ -589,16 +590,16 @@ export function registerRoutes(app: Express): Server {
       }
 
       // Send welcome message without waiting for response
-      sendWelcomeMessage(memberUser.phoneNumber, loop.name)
+      const creatorName = loop.creator ? `${loop.creator.firstName} ${loop.creator.lastName}` : "your loop admin";
+      sendWelcomeMessage(memberUser.phoneNumber, loop.name, memberUser.firstName, creatorName)
         .catch(error => console.error('Failed to send welcome SMS:', error));
 
       // Return member with user data
-      const [completeMember] = await db.query.loopMembers.findMany({
+      const completeMember = await db.query.loopMembers.findFirst({
         where: eq(loopMembers.id, member.id),
         with: {
           user: true,
         },
-        limit: 1,
       });
 
       res.json(completeMember);
@@ -655,15 +656,15 @@ export function registerRoutes(app: Express): Server {
       return res.status(401).send("Not authenticated");
     }
 
-    const { content, mediaUrl } = req.body;
+    const { content, mediaUrls } = req.body;
 
     const [update] = await db
       .insert(updates)
       .values({
-        loopId: parseInt(req.params.id),
-        userId: user.id,
         content,
-        mediaUrl,
+        mediaUrls: mediaUrls || [],
+        userId: user.id,
+        loopId: parseInt(req.params.id),
       })
       .returning();
 
@@ -764,12 +765,17 @@ export function registerRoutes(app: Express): Server {
       loop.vibe
     );
 
+    // Generate a unique URL ID
+    const urlId = nanoid(10);
+
     // Save the newsletter
     const [newsletter] = await db
       .insert(newsletters)
       .values({
-        loopId,
         content: newsletterContent,
+        loopId,
+        urlId,
+        status: 'draft'
       })
       .returning();
 
@@ -1018,7 +1024,7 @@ export function registerRoutes(app: Express): Server {
 
       res.json(updatedNewsletter);
     } catch (error) {
-      console.error("Error updating newsletter:", error);
+        console.error("Error updating newsletter:", error);
       res.status(500).send("Failed to update newsletter");
     }
   });
@@ -1033,7 +1039,7 @@ export function registerRoutes(app: Express): Server {
         .select()
         .from(newsletters)
         .where(
-          and(
+                    and(
             eq(newsletters.id, newsletterId),
             eq(newsletters.loopId, loopId)
           )
