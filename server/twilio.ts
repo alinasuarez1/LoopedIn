@@ -32,7 +32,7 @@ export async function sendWelcomeMessage(phoneNumber: string, loopName: string, 
 
 No need to sign up, all you have to do is reply to this message with your updates, photos, or even your random shower thoughts—no pressure, no perfection required.
 
-In a couple weeks, we'll transform everyones updates into a delightful newsletter for everyone to enjoy.
+In a couple weeks, we'll transform everyone's updates into a delightful newsletter for your group to enjoy.
 
 📌 Pro Tip: Save this number as LoopedIn in your contacts so you don't miss a thing! Reply STOP to opt out.
 
