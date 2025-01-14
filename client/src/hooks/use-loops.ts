@@ -2,10 +2,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { Loop, InsertLoop, LoopMember, Newsletter, Update, User } from "@db/schema";
 
 interface LoopWithRelations extends Loop {
-  members: (LoopMember & { 
-    user: User;
-    nickname?: string; // Added nickname field here
-  })[];
+  members: (LoopMember & { user: User })[];
   updates: (Update & { user: User })[];
   newsletters: Newsletter[];
 }

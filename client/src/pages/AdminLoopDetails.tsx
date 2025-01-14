@@ -21,22 +21,62 @@ import { Loader2, ExternalLink } from "lucide-react";
 import { format } from "date-fns";
 import { useToast } from "@/hooks/use-toast";
 import { BulkSMSDialog } from "@/components/BulkSMSDialog";
-import { type User, type Loop, type LoopMember, type Update, type Newsletter } from "@db/schema";
+import {useState} from "react";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import { Textarea } from "@/components/ui/textarea";
+import { useForm } from "react-hook-form";
+import { MessageSquare } from "lucide-react";
 
-interface LoopDetails extends Loop {
+interface LoopDetails {
+  id: number;
+  name: string;
+  frequency: string;
+  vibe: string[];
+  context?: string;
+  reminderSchedule: Array<{
+    day: string;
+    time: string;
+  }>;
   creator: {
     firstName: string;
     lastName: string;
     email: string;
   };
-  members: Array<LoopMember & {
-    user: User;
+  members: Array<{
+    id: number;
+    user: {
+      firstName: string;
+      lastName: string;
+      email: string | null;
+      phoneNumber: string;
+    };
+    context?: string;
   }>;
-  updates: Array<Update & {
-    user: User;
+  updates: Array<{
+    id: number;
+    content: string;
+    mediaUrls: string[];
+    createdAt: string;
+    user: {
+      firstName: string;
+      lastName: string;
+    };
   }>;
-  newsletters: Newsletter[];
+  newsletters: Array<{
+    id: number;
+    content: string;
+    sentAt: string;
+    urlId: string;
+    status: "draft" | "sent";
+  }>;
 }
+
 
 export default function AdminLoopDetails() {
   const { id } = useParams<{ id: string }>();
@@ -188,11 +228,6 @@ export default function AdminLoopDetails() {
                 <TableRow key={member.id}>
                   <TableCell>
                     {member.user.firstName} {member.user.lastName}
-                    {member.nickname && (
-                      <span className="ml-2 text-sm text-muted-foreground">
-                        ({member.nickname})
-                      </span>
-                    )}
                   </TableCell>
                   <TableCell>{member.user.email || "—"}</TableCell>
                   <TableCell>{member.user.phoneNumber}</TableCell>
@@ -225,7 +260,7 @@ export default function AdminLoopDetails() {
               </CardHeader>
               <CardContent>
                 <p>{update.content}</p>
-                {update.mediaUrls && update.mediaUrls.length > 0 && (
+                {update.mediaUrls.length > 0 && (
                   <div className="mt-2 flex gap-2">
                     {update.mediaUrls.map((url, i) => (
                       <a
@@ -246,7 +281,7 @@ export default function AdminLoopDetails() {
         </CardContent>
       </Card>
 
-      {/* Newsletters */}
+      {/* Newsletters section */}
       <Card>
         <CardHeader>
           <CardTitle>Past Newsletters</CardTitle>
@@ -263,7 +298,7 @@ export default function AdminLoopDetails() {
               >
                 <div className="flex flex-col">
                   <time className="text-sm text-muted-foreground">
-                    {newsletter.sentAt ? format(new Date(newsletter.sentAt), "PPp") : "Not sent"}
+                    {format(new Date(newsletter.sentAt), "PPp")}
                   </time>
                   <span className="text-xs text-muted-foreground mt-1">
                     Status: {newsletter.status}
