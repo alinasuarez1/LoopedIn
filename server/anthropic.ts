@@ -26,10 +26,10 @@ export async function generateNewsletter(
   try {
     const updatesList = updates.map(u => {
       const mediaHtml = u.mediaUrls?.map((url, index) => `
-        <figure class="my-6">
+        <figure class="my-4">
           <img src="${url}" 
                alt="Update from ${u.userName} - Media ${index + 1}" 
-               class="rounded-lg shadow-md max-w-full h-auto mx-auto"
+               class="rounded-lg shadow-md max-w-[400px] h-auto mx-auto"
                loading="lazy" />
         </figure>
       `).join('\n') || '';
