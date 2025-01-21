@@ -897,7 +897,7 @@ export function registerRoutes(app: Express): Server {
           <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
           <style>
             .newsletter-content {
-              max-width: 300px; /* Reduced max-width */
+              max-width: 800px;
               margin: 0 auto;
               padding: 2rem;
             }
@@ -966,7 +966,7 @@ export function registerRoutes(app: Express): Server {
           </style>
         </head>
         <body class="bg-gray-50 min-h-screen py-8">
-          <div class="max-w-3xl mx-auto px-4">  <!-- Added max-width constraint -->
+          <div class="max-w-4xl mx-auto px-4">
             <article class="bg-white rounded-xl shadow-lg overflow-hidden">
               ${newsletter.content}
             </article>
