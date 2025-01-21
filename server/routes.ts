@@ -897,20 +897,22 @@ export function registerRoutes(app: Express): Server {
           <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
           <style>
             .newsletter-content {
-              max-width: 800px;
+              max-width: 300px; /* Reduced max-width */
               margin: 0 auto;
               padding: 2rem;
             }
             .newsletter-content img {
-              max-width: 100%;
+              max-width: 250px;
+              width: 100%;
               height: auto;
-              margin: 1.5rem auto;
+              margin: 1rem auto;
               border-radius: 0.5rem;
               box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
               display: block;
             }
             .newsletter-content figure {
-              margin: 2rem 0;
+              margin: 1rem 0;
+              text-align: center;
             }
             .newsletter-content h1 {
               font-size: 2.25rem;
@@ -964,7 +966,7 @@ export function registerRoutes(app: Express): Server {
           </style>
         </head>
         <body class="bg-gray-50 min-h-screen py-8">
-          <div class="max-w-4xl mx-auto px-4">
+          <div class="max-w-3xl mx-auto px-4">  <!-- Added max-width constraint -->
             <article class="bg-white rounded-xl shadow-lg overflow-hidden">
               ${newsletter.content}
             </article>
@@ -1024,7 +1026,7 @@ export function registerRoutes(app: Express): Server {
 
       res.json(updatedNewsletter);
     } catch (error) {
-        console.error("Error updating newsletter:", error);
+      console.error("Error updating newsletter:", error);
       res.status(500).send("Failed to update newsletter");
     }
   });

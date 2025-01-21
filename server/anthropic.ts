@@ -26,13 +26,13 @@ export async function generateNewsletter(
   try {
     const updatesList = updates.map(u => {
       const mediaHtml = u.mediaUrls?.map((url, index) => `
-        <figure class="my-4">
-          <img src="${url}" 
-               alt="Update from ${u.userName} - Media ${index + 1}" 
-               class="rounded-lg shadow-md max-w-[400px] h-auto mx-auto"
-               loading="lazy" />
-        </figure>
-      `).join('\n') || '';
+  <figure class="my-4">
+    <img src="${url}" 
+         alt="Update from ${u.userName} - Media ${index + 1}" 
+         class="rounded-lg shadow-md max-w-[250px] w-full h-auto mx-auto"
+         loading="lazy" />
+  </figure>
+`).join('\n') || '';
 
       return `<div class="update-details" data-member="${u.userName}">
   <div class="update-content mb-4">
