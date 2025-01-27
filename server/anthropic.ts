@@ -24,6 +24,14 @@ export async function generateNewsletter(
   options?: NewsletterOptions
 ): Promise<string> {
   try {
+    // First collect all images for the gallery
+    const allImages = updates.flatMap(update => 
+      update.mediaUrls?.map(url => ({
+        url,
+        userName: update.userName
+      })) || []
+    );
+
     const updatesList = updates.map(u => {
       const mediaHtml = u.mediaUrls?.map((url, index) => `
   <figure class="my-4">
@@ -41,6 +49,23 @@ export async function generateNewsletter(
   ${mediaHtml}
 </div>`;
     }).join('\n\n');
+
+    // Create the photo gallery HTML if there are images
+    const photoGallery = allImages.length > 0 ? `
+<h2 class="text-2xl font-bold mt-12 mb-6">📸 Photo Gallery</h2>
+<div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+  ${allImages.map(img => `
+  <figure class="relative group">
+    <img src="${img.url}" 
+         alt="Shared by ${img.userName}" 
+         class="rounded-lg shadow-md w-full h-48 object-cover"
+         loading="lazy" />
+    <figcaption class="absolute bottom-0 left-0 right-0 bg-black bg-opacity-50 text-white text-sm p-2 rounded-b-lg">
+      Shared by ${img.userName}
+    </figcaption>
+  </figure>
+  `).join('\n')}
+</div>` : '';
 
     const vibeDescription = vibe.join(', ');
     const customHeader = options?.customHeader || '';
@@ -110,6 +135,7 @@ Important guidelines:
 
   <article class="prose prose-lg mx-auto">
     ${newsletterContent}
+    ${photoGallery}
   </article>
 
   <footer class="mt-8 pt-4 border-t border-gray-200 text-center text-sm text-gray-500">
