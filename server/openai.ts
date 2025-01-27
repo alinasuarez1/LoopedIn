@@ -23,11 +23,12 @@ export async function generateNewsletter(
   options?: NewsletterOptions
 ): Promise<string> {
   try {
-    // First collect all images for the gallery
-    const allImages = updates.flatMap(update => 
+    // First collect all images for the gallery with their associated text
+    const allImages = updates.flatMap(update =>
       update.mediaUrls?.map(url => ({
         url,
-        userName: update.userName
+        userName: update.userName,
+        caption: update.content
       })) || []
     );
 
@@ -59,9 +60,10 @@ export async function generateNewsletter(
          alt="Shared by ${img.userName}" 
          class="rounded-lg shadow-md w-full h-48 object-cover"
          loading="lazy" />
-    <figcaption class="absolute bottom-0 left-0 right-0 bg-black bg-opacity-50 text-white text-sm p-2 rounded-b-lg">
-      Shared by ${img.userName}
-    </figcaption>
+    <div class="absolute bottom-0 left-0 right-0 bg-black bg-opacity-50 text-white p-2 rounded-b-lg">
+      <p class="text-sm font-semibold">Shared by ${img.userName}</p>
+      ${img.caption ? `<p class="text-xs mt-1 line-clamp-2">${img.caption}</p>` : ''}
+    </div>
   </figure>
   `).join('\n')}
 </div>` : '';
@@ -79,22 +81,28 @@ Here are all the updates from members:
 ${updatesList}
 
 Important requirements:
-1. Create a catchy, fun title that captures the overall theme or spirit
+1. Create a catchy, fun title that captures the overall theme or spirit. The title should encapsulate the overall theme of the week and be engaging enough to draw in readers. Consider using wordplay, puns, or pop culture references.
 2. Weave the updates into a cohesive story:
    - Create thematic sections that naturally connect different updates
    - Use creative transitions to flow between topics
    - Include relevant quotes from members' updates to add personality
    - Make unexpected but meaningful connections between updates
-   - INCLUDE ALL updates but present them in a narrative way
+   - MAKE SURE TO INCLUDE ALL members that have sent updates in the newsletter
+   - if someone has sent long updates, make sure to highlight the most important parts
+   - Ensure smooth transitions between updates using segues that make sense contextually. Avoid abrupt jumps from one topic to another.
+   - Make the newsletter lengthy to include most updates
+   - prioritize the most important updates
+2. Use members’ inside jokes, slang, or unique writing styles to make the newsletter feel more like a personal recap rather than a generic update.
 3. Add personality through:
    - Fun, thematic section headers
    - Brief narrative commentary between sections
    - Creative use of emojis that fit the story
-4. End with an engaging closing that ties everything together
+4. End with an engaging closing that ties everything together. Include a fun question, poll, or challenge at the end to encourage engagement. This could be a 'Guess who said this?' quote, a mini-award section (e.g., 'Funniest Update of the Week'), or a prompt asking readers to share their own highlights for next time.
 5. IMPORTANT: For any update that includes images:
    - Keep all image tags exactly as provided
    - Introduce images naturally in the narrative
    - Add context around the images to make them part of the story
+6. Include at least 1 update received from all members in the Loop, ensuring that each person’s contribution is reflected in the newsletter in at least one sentence. If an update is missing, recheck the provided inputs and ensure nothing is excluded
 
 ${customClosing ? `\n${customClosing}` : ''}
 
@@ -103,13 +111,7 @@ Important guidelines:
   - Main title: <h1 class="text-4xl font-bold text-center mb-8">
   - Section headers: <h2 class="text-2xl font-bold mt-8 mb-4">
   - Quotes: <blockquote class="border-l-4 border-primary pl-4 my-4 italic">
-- Keep your ${vibeDescription} tone throughout
-- Make it feel like a story, not a list of updates
-- Preserve all original content while presenting it creatively
-- Include every update but blend them naturally into the narrative
-- Use member quotes to highlight key points
-- Keep ALL original content including images exactly as provided
-- Keep the original context and meaning of updates intact`;
+- Keep your ${vibeDescription} tone throughout`;
 
     const completion = await openai.chat.completions.create({
       model: "gpt-4-turbo-preview",

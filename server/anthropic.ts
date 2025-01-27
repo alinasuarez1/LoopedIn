@@ -24,11 +24,12 @@ export async function generateNewsletter(
   options?: NewsletterOptions
 ): Promise<string> {
   try {
-    // First collect all images for the gallery
+    // First collect all images for the gallery with their associated text
     const allImages = updates.flatMap(update => 
       update.mediaUrls?.map(url => ({
         url,
-        userName: update.userName
+        userName: update.userName,
+        caption: update.content
       })) || []
     );
 
@@ -60,9 +61,10 @@ export async function generateNewsletter(
          alt="Shared by ${img.userName}" 
          class="rounded-lg shadow-md w-full h-48 object-cover"
          loading="lazy" />
-    <figcaption class="absolute bottom-0 left-0 right-0 bg-black bg-opacity-50 text-white text-sm p-2 rounded-b-lg">
-      Shared by ${img.userName}
-    </figcaption>
+    <div class="absolute bottom-0 left-0 right-0 bg-black bg-opacity-50 text-white p-2 rounded-b-lg">
+      <p class="text-sm font-semibold">Shared by ${img.userName}</p>
+      ${img.caption ? `<p class="text-xs mt-1 line-clamp-2">${img.caption}</p>` : ''}
+    </div>
   </figure>
   `).join('\n')}
 </div>` : '';
