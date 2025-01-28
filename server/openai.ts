@@ -59,24 +59,29 @@ Here are the updates to cover in this section:
 ${updatesList}
 
 Important requirements:
-1. If this is section 1 (${sectionIndex === 0}):
-   - Create a catchy overall title for the newsletter
-   - Write an engaging introduction
-2. Create appropriate section headers that smoothly connect to other parts
-3. Weave the updates into a cohesive story:
-   - Create thematic sections that naturally connect different updates
+${sectionIndex === 0 ? `
+1. Start with:
+   - A catchy overall title for the newsletter
+   - An engaging introduction that sets the tone
+   - A smooth transition into the first updates` : ''}
+${sectionIndex === totalSections - 1 ? `
+1. End with:
+   - An engaging conclusion that ties everything together
+   - A fun prompt or question for next time
+   - A smooth wrap-up of all themes covered` : ''}
+2. Create thematic sections that naturally connect different updates:
    - Use creative transitions between topics
    - Include relevant quotes from members
    - Make meaningful connections between updates
    - INCLUDE ALL updates but present them naturally
-4. If this is the final section (${sectionIndex === totalSections - 1}):
-   - Write an engaging conclusion
-   - Add a fun prompt or question for next time
-5. IMPORTANT: Keep all image tags exactly as provided
+3. Other than first/last sections, focus purely on content:
+   - No section introductions or conclusions needed
+   - Just weave updates together naturally
+4. IMPORTANT: Keep all image tags exactly as provided
 
 Guidelines:
 - Use proper HTML tags and styling:
-  - Main title (only in first section): <h1 class="text-4xl font-bold text-center mb-8">
+  ${sectionIndex === 0 ? '- Main title: <h1 class="text-4xl font-bold text-center mb-8">' : ''}
   - Section headers: <h2 class="text-2xl font-bold mt-8 mb-4">
   - Quotes: <blockquote class="border-l-4 border-primary pl-4 my-4 italic">
 - Keep your ${vibeDescription} tone throughout
@@ -165,14 +170,15 @@ export async function generateNewsletter(
 export async function analyzeUpdatesForHighlights(updates: string[]): Promise<string[]> {
   try {
     const prompt = `Given these updates from a group, identify 3-5 key themes or highlights that would be interesting to feature in a newsletter:
+169:
 
 ${updates.join('\n')}
 
-Please output only the highlights, one per line, focusing on:
-- Common themes across updates
-- Notable achievements or milestones
-- Shared experiences or connections
-- Forward-looking plans or aspirations`;
+172:Please output only the highlights, one per line, focusing on:
+173:- Common themes across updates
+174:- Notable achievements or milestones
+175:- Shared experiences or connections
+176:- Forward-looking plans or aspirations`;
 
     const completion = await openai.chat.completions.create({
       model: "gpt-4-turbo-preview",
@@ -195,17 +201,19 @@ export async function suggestNewsletterImprovements(
 ): Promise<string> {
   try {
     const prompt = `Review this newsletter draft and suggest improvements to make it more engaging and aligned with the ${vibe.join(', ')} vibe:
+199:
 
 ${newsletterContent}
 
-Focus on:
-1. Tone and voice consistency
-2. Structure and flow
-3. Engagement factors
-4. Personal touches
-5. Call-to-action effectiveness
+202:Focus on:
+203:1. Tone and voice consistency
+204:2. Structure and flow
+205:3. Engagement factors
+206:4. Personal touches
+207:5. Call-to-action effectiveness
+208:
 
-Provide specific, actionable suggestions.`;
+209:Provide specific, actionable suggestions.`;
 
     const completion = await openai.chat.completions.create({
       model: "gpt-4-turbo-preview",
