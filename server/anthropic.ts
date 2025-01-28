@@ -53,41 +53,74 @@ async function generateNewsletterSection(
 </div>`;
   }).join('\n\n');
 
-  const prompt = `Create part ${sectionIndex + 1} of ${totalSections} of the newsletter for the group "${loopName}" with a ${vibeDescription} tone.
+  let prompt: string;
 
-Here are the updates to cover in this section:
+  if (sectionIndex === 0) {
+    // First section: Include title and introduction
+    prompt = `Create the opening section of the newsletter for the group "${loopName}" with a ${vibeDescription} tone.
+
+Here are the first set of updates to cover:
 
 ${updatesList}
 
-Important requirements:
-${sectionIndex === 0 ? `
+Requirements:
 1. Start with:
-   - A catchy overall title for the newsletter
+   - A catchy overall title for the entire newsletter using <h1> tag
    - An engaging introduction that sets the tone
-   - A smooth transition into the first updates` : ''}
-${sectionIndex === totalSections - 1 ? `
-1. End with:
-   - An engaging conclusion that ties everything together
-   - A fun prompt or question for next time
-   - A smooth wrap-up of all themes covered` : ''}
-2. Create thematic sections that naturally connect different updates:
-   - Use creative transitions between topics
-   - Include relevant quotes from members
-   - Make meaningful connections between updates
-   - INCLUDE ALL updates but present them naturally
-3. Other than first/last sections, focus purely on content:
-   - No section introductions or conclusions needed
-   - Just weave updates together naturally
-4. IMPORTANT: Keep all image tags exactly as provided
+   - A smooth transition into the first updates
+2. Present the updates in a natural, narrative flow:
+   - Group related updates together
+   - Use member quotes to highlight key points
+   - Keep ALL original content including images exactly as provided
 
-Guidelines:
-- Use proper HTML tags and styling:
-  ${sectionIndex === 0 ? '- Main title: <h1 class="text-4xl font-bold text-center mb-8">' : ''}
-  - Section headers: <h2 class="text-2xl font-bold mt-8 mb-4">
-  - Quotes: <blockquote class="border-l-4 border-primary pl-4 my-4 italic">
-- Keep your ${vibeDescription} tone throughout
-- Make it feel like a natural part of a larger story
-- Preserve all original content while presenting it creatively`;
+Format Guidelines:
+- Main title: <h1 class="text-4xl font-bold text-center mb-8">
+- Section headers: <h2 class="text-2xl font-bold mt-8 mb-4">
+- Quotes: <blockquote class="border-l-4 border-primary pl-4 my-4 italic">`;
+  } else if (sectionIndex === totalSections - 1) {
+    // Last section: Include conclusion
+    prompt = `Create the final section of the newsletter for the group "${loopName}" with a ${vibeDescription} tone.
+
+Here are the final updates to cover:
+
+${updatesList}
+
+Requirements:
+1. Present the updates in a natural, narrative flow:
+   - Group related updates together
+   - Use member quotes to highlight key points
+   - Keep ALL original content including images exactly as provided
+2. End with:
+   - A satisfying conclusion that ties everything together
+   - A fun prompt or question for next time
+
+Format Guidelines:
+- Section headers: <h2 class="text-2xl font-bold mt-8 mb-4">
+- Quotes: <blockquote class="border-l-4 border-primary pl-4 my-4 italic">`;
+  } else {
+    // Middle sections: Pure content focus
+    prompt = `Continue the newsletter for the group "${loopName}" with a ${vibeDescription} tone.
+
+Here are the next updates to cover:
+
+${updatesList}
+
+Requirements:
+1. Focus ONLY on presenting the updates:
+   - No introduction or transition text needed
+   - No "In this section" or similar phrases
+   - Just weave the updates together naturally
+2. Present updates in a natural, narrative flow:
+   - Group related updates together
+   - Use member quotes to highlight key points
+   - Keep ALL original content including images exactly as provided
+
+Format Guidelines:
+- Section headers: <h2 class="text-2xl font-bold mt-8 mb-4">
+- Quotes: <blockquote class="border-l-4 border-primary pl-4 my-4 italic">
+
+IMPORTANT: Do not mention this being a continuation or middle section. Just focus on the content.`;
+  }
 
   const response = await anthropic.messages.create({
     model: 'claude-3-5-sonnet-20241022',
@@ -170,7 +203,6 @@ export async function generateNewsletter(
 export async function analyzeUpdatesForHighlights(updates: string[]): Promise<string[]> {
   try {
     const prompt = `Given these updates from a group, identify 3-5 key themes or highlights that would be interesting to feature in a newsletter:
-168:
 
 ${updates.join('\n')}
 
