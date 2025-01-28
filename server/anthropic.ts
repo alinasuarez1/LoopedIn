@@ -53,41 +53,36 @@ async function generateNewsletterSection(
 </div>`;
   }).join('\n\n');
 
-  const prompt = `Create a section of the newsletter for the group "${loopName}" with a ${vibeDescription} tone.
+  const prompt = `Create part ${sectionIndex + 1} of ${totalSections} of the newsletter for the group "${loopName}" with a ${vibeDescription} tone.
 
-Here are the updates to include in your section:
+Here are the updates to cover in this section:
 
 ${updatesList}
 
 Important requirements:
-${sectionIndex === 0 ? `
-As this is the beginning of the newsletter:
-- Create a catchy overall title for the newsletter
-- Write an engaging introduction that sets the tone
-` : ''}
-${sectionIndex === totalSections - 1 ? `
-As this is the final section of the newsletter:
-- Create a satisfying conclusion that ties everything together
-- Add an engaging prompt or question to encourage future participation
-` : ''}
+1. If this is section 1 (${sectionIndex === 0}):
+   - Create a catchy overall title for the newsletter
+   - Write an engaging introduction
+2. Create appropriate section headers that smoothly connect to other parts
+3. Weave the updates into a cohesive story:
+   - Create thematic sections that naturally connect different updates
+   - Use creative transitions between topics
+   - Include relevant quotes from members
+   - Make meaningful connections between updates
+   - INCLUDE ALL updates but present them naturally
+4. If this is the final section (${sectionIndex === totalSections - 1}):
+   - Write an engaging conclusion
+   - Add a fun prompt or question for next time
+5. IMPORTANT: Keep all image tags exactly as provided
 
-Core guidelines:
-1. Create natural thematic groupings of updates
-2. Use creative transitions between topics
-3. Include relevant quotes from members
-4. Make meaningful connections between updates
-5. INCLUDE ALL updates but present them naturally
-6. End your section in a way that flows smoothly into the next
-
-Styling guidelines:
-- Use proper HTML tags:
-  ${sectionIndex === 0 ? '- Main title: <h1 class="text-4xl font-bold text-center mb-8">' : ''}
+Guidelines:
+- Use proper HTML tags and styling:
+  - Main title (only in first section): <h1 class="text-4xl font-bold text-center mb-8">
   - Section headers: <h2 class="text-2xl font-bold mt-8 mb-4">
   - Quotes: <blockquote class="border-l-4 border-primary pl-4 my-4 italic">
 - Keep your ${vibeDescription} tone throughout
 - Make it feel like a natural part of a larger story
-- Preserve all original content while presenting it creatively
-- Keep all image tags exactly as provided`;
+- Preserve all original content while presenting it creatively`;
 
   const response = await anthropic.messages.create({
     model: 'claude-3-5-sonnet-20241022',
