@@ -53,71 +53,41 @@ async function generateNewsletterSection(
 </div>`;
   }).join('\n\n');
 
-  let prompt: string;
+  const prompt = `Create part ${sectionIndex + 1} of ${totalSections} of the newsletter for the group "${loopName}" with a ${vibeDescription} tone.
 
-  if (sectionIndex === 0) {
-    // First section: Include title and introduction
-    prompt = `You are writing the opening of a newsletter for the group "${loopName}". Create an engaging story from these updates:
+Here are the updates to cover in this section:
 
 ${updatesList}
 
-Key Requirements:
+Important requirements:
+${sectionIndex === 0 ? `
 1. Start with:
-   - A catchy newsletter title using <h1> tag
-   - A brief, engaging introduction for the entire newsletter
-2. Transform these updates into the beginning of your story:
-   - Create natural thematic connections
-   - Include relevant member quotes
-   - Keep image content exactly as provided
-
-Format:
-- Main newsletter title: <h1 class="text-4xl font-bold text-center mb-8">
-- Story section headers: <h2 class="text-2xl font-bold mt-8 mb-4">
-- Member quotes: <blockquote class="border-l-4 border-primary pl-4 my-4 italic">
-
-Maintain a ${vibeDescription} tone throughout.`;
-
-  } else if (sectionIndex === totalSections - 1) {
-    // Last section: Include conclusion
-    prompt = `You are writing the ending of a newsletter for the group "${loopName}". Transform these updates into the final part of your story:
-
-${updatesList}
-
-Key Requirements:
-1. Continue the story naturally from previous sections
-2. Transform these updates into your story:
-   - Create thematic connections
-   - Include relevant member quotes
-   - Keep image content exactly as provided
-3. End with:
-   - A brief, engaging conclusion
+   - A catchy overall title for the newsletter
+   - An engaging introduction that sets the tone
+   - A smooth transition into the first updates` : ''}
+${sectionIndex === totalSections - 1 ? `
+1. End with:
+   - An engaging conclusion that ties everything together
    - A fun prompt or question for next time
+   - A smooth wrap-up of all themes covered` : ''}
+2. Create thematic sections that naturally connect different updates:
+   - Use creative transitions between topics
+   - Include relevant quotes from members
+   - Make meaningful connections between updates
+   - INCLUDE ALL updates but present them naturally
+3. Other than first/last sections, focus purely on content:
+   - No section introductions or conclusions needed
+   - Just weave updates together naturally
+4. IMPORTANT: Keep all image tags exactly as provided
 
-Format:
-- Story section headers: <h2 class="text-2xl font-bold mt-8 mb-4">
-- Member quotes: <blockquote class="border-l-4 border-primary pl-4 my-4 italic">
-
-Maintain a ${vibeDescription} tone throughout.`;
-
-  } else {
-    // Middle sections: Pure storytelling, no transitions
-    prompt = `Transform these updates from the "${loopName}" group into a story:
-
-${updatesList}
-
-Key Requirements:
-- Weave these updates into an engaging narrative
-- Create thematic connections between updates
-- Use relevant member quotes when natural
-- Keep all image content exactly as provided
-- NO section introductions or conclusions needed
-
-Format:
-- Story section headers: <h2 class="text-2xl font-bold mt-8 mb-4">
-- Member quotes: <blockquote class="border-l-4 border-primary pl-4 my-4 italic">
-
-Maintain a ${vibeDescription} tone. Focus purely on storytelling - no transitions or section markers needed.`;
-  }
+Guidelines:
+- Use proper HTML tags and styling:
+  ${sectionIndex === 0 ? '- Main title: <h1 class="text-4xl font-bold text-center mb-8">' : ''}
+  - Section headers: <h2 class="text-2xl font-bold mt-8 mb-4">
+  - Quotes: <blockquote class="border-l-4 border-primary pl-4 my-4 italic">
+- Keep your ${vibeDescription} tone throughout
+- Make it feel like a natural part of a larger story
+- Preserve all original content while presenting it creatively`;
 
   const response = await anthropic.messages.create({
     model: 'claude-3-5-sonnet-20241022',
@@ -200,6 +170,7 @@ export async function generateNewsletter(
 export async function analyzeUpdatesForHighlights(updates: string[]): Promise<string[]> {
   try {
     const prompt = `Given these updates from a group, identify 3-5 key themes or highlights that would be interesting to feature in a newsletter:
+168:
 
 ${updates.join('\n')}
 
