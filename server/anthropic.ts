@@ -17,24 +17,26 @@ interface NewsletterOptions {
   customClosing?: string;
 }
 
-export async function generateNewsletter(
+// Helper function to split updates into batches
+function splitUpdatesToBatches(updates: NewsletterUpdate[], batchSize: number = 10): NewsletterUpdate[][] {
+  const batches: NewsletterUpdate[][] = [];
+  for (let i = 0; i < updates.length; i += batchSize) {
+    batches.push(updates.slice(i, i + batchSize));
+  }
+  return batches;
+}
+
+async function generateNewsletterSection(
   loopName: string,
   updates: NewsletterUpdate[],
   vibe: string[],
+  sectionIndex: number,
+  totalSections: number,
   options?: NewsletterOptions
 ): Promise<string> {
-  try {
-    // First collect all images for the gallery with their associated text
-    const allImages = updates.flatMap(update => 
-      update.mediaUrls?.map(url => ({
-        url,
-        userName: update.userName,
-        caption: update.content
-      })) || []
-    );
-
-    const updatesList = updates.map(u => {
-      const mediaHtml = u.mediaUrls?.map((url, index) => `
+  const vibeDescription = vibe.join(', ');
+  const updatesList = updates.map(u => {
+    const mediaHtml = u.mediaUrls?.map((url, index) => `
   <figure class="my-4">
     <img src="${url}" 
          alt="Update from ${u.userName} - Media ${index + 1}" 
@@ -43,13 +45,80 @@ export async function generateNewsletter(
   </figure>
 `).join('\n') || '';
 
-      return `<div class="update-details" data-member="${u.userName}">
+    return `<div class="update-details" data-member="${u.userName}">
   <div class="update-content mb-4">
     ${u.content}
   </div>
   ${mediaHtml}
 </div>`;
-    }).join('\n\n');
+  }).join('\n\n');
+
+  const prompt = `Create part ${sectionIndex + 1} of ${totalSections} of the newsletter for the group "${loopName}" with a ${vibeDescription} tone.
+
+Here are the updates to cover in this section:
+
+${updatesList}
+
+Important requirements:
+1. If this is section 1 (${sectionIndex === 0}):
+   - Create a catchy overall title for the newsletter
+   - Write an engaging introduction
+2. Create appropriate section headers that smoothly connect to other parts
+3. Weave the updates into a cohesive story:
+   - Create thematic sections that naturally connect different updates
+   - Use creative transitions between topics
+   - Include relevant quotes from members
+   - Make meaningful connections between updates
+   - INCLUDE ALL updates but present them naturally
+4. If this is the final section (${sectionIndex === totalSections - 1}):
+   - Write an engaging conclusion
+   - Add a fun prompt or question for next time
+5. IMPORTANT: Keep all image tags exactly as provided
+
+Guidelines:
+- Use proper HTML tags and styling:
+  - Main title (only in first section): <h1 class="text-4xl font-bold text-center mb-8">
+  - Section headers: <h2 class="text-2xl font-bold mt-8 mb-4">
+  - Quotes: <blockquote class="border-l-4 border-primary pl-4 my-4 italic">
+- Keep your ${vibeDescription} tone throughout
+- Make it feel like a natural part of a larger story
+- Preserve all original content while presenting it creatively`;
+
+  const response = await anthropic.messages.create({
+    model: 'claude-3-5-sonnet-20241022',
+    max_tokens: 4000,
+    messages: [{ role: 'user', content: prompt }],
+  });
+
+  return response.content[0].type === 'text' ? response.content[0].text : '';
+}
+
+export async function generateNewsletter(
+  loopName: string,
+  updates: NewsletterUpdate[],
+  vibe: string[],
+  options?: NewsletterOptions
+): Promise<string> {
+  try {
+    // First collect all images for the gallery with their associated text
+    const allImages = updates.flatMap(update =>
+      update.mediaUrls?.map(url => ({
+        url,
+        userName: update.userName,
+        caption: update.content
+      })) || []
+    );
+
+    // Split updates into batches and generate sections
+    const batches = splitUpdatesToBatches(updates);
+    const sections = await Promise.all(
+      batches.map((batch, index) => 
+        generateNewsletterSection(loopName, batch, vibe, index, batches.length, options)
+      )
+    );
+
+    // Combine all sections
+    const newsletterContent = sections.join('\n\n');
 
     // Create the photo gallery HTML if there are images
     const photoGallery = allImages.length > 0 ? `
@@ -69,67 +138,9 @@ export async function generateNewsletter(
   `).join('\n')}
 </div>` : '';
 
-    const vibeDescription = vibe.join(', ');
-    const customHeader = options?.customHeader || '';
-    const customClosing = options?.customClosing || '';
-
-    const prompt = `Create an engaging narrative-style newsletter for the group "${loopName}" with a ${vibeDescription} tone.
-
-${customHeader ? `Use this custom header: ${customHeader}\n` : ''}
-
-Here are all the updates from members:
-
-${updatesList}
-
-Important requirements:
-1. Create a catchy, fun title that captures the overall theme or spirit
-2. Weave the updates into a cohesive story:
-   - Create thematic sections that naturally connect different updates
-   - Use creative transitions to flow between topics
-   - Include relevant quotes from members' updates to add personality
-   - Make unexpected but meaningful connections between updates
-   - INCLUDE ALL updates but present them in a narrative way
-3. Add personality through:
-   - Fun, thematic section headers
-   - Brief narrative commentary between sections
-   - Creative use of emojis that fit the story
-4. End with an engaging closing that ties everything together
-5. IMPORTANT: For any update that includes images:
-   - Keep all image tags exactly as provided
-   - Introduce images naturally in the narrative
-   - Add context around the images to make them part of the story
-
-${customClosing ? `\n${customClosing}` : ''}
-
-Important guidelines:
-- Use proper HTML tags and styling:
-  - Main title: <h1 class="text-4xl font-bold text-center mb-8">
-  - Section headers: <h2 class="text-2xl font-bold mt-8 mb-4">
-  - Quotes: <blockquote class="border-l-4 border-primary pl-4 my-4 italic">
-- Make it feel like a story, not a list of updates
-- Keep your ${vibeDescription} tone throughout
-- Preserve all original content while presenting it creatively
-- Include every update but blend them naturally into the narrative
-- Use member quotes to highlight key points
-- Keep ALL original content including images exactly as provided
-- Keep the original context and meaning of updates intact`;
-
-    const response = await anthropic.messages.create({
-      model: 'claude-3-5-sonnet-20241022',
-      max_tokens: 4000,
-      messages: [{ role: 'user', content: prompt }],
-    });
-
-    const newsletterContent = response.content[0].type === 'text' ? response.content[0].text : '';
-
-    if (!newsletterContent) {
-      throw new Error("Failed to generate newsletter content");
-    }
-
     return `
 <div class="newsletter-content max-w-4xl mx-auto">
   <header class="text-center mb-8">
-    <h1 class="text-4xl font-bold mb-2">${loopName}</h1>
     <div class="text-sm text-gray-500">
       Generated on ${new Date().toLocaleDateString()}
     </div>

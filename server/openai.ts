@@ -16,6 +16,83 @@ interface NewsletterOptions {
   customClosing?: string;
 }
 
+// Helper function to split updates into batches
+function splitUpdatesToBatches(updates: NewsletterUpdate[], batchSize: number = 10): NewsletterUpdate[][] {
+  const batches: NewsletterUpdate[][] = [];
+  for (let i = 0; i < updates.length; i += batchSize) {
+    batches.push(updates.slice(i, i + batchSize));
+  }
+  return batches;
+}
+
+async function generateNewsletterSection(
+  loopName: string,
+  updates: NewsletterUpdate[],
+  vibe: string[],
+  sectionIndex: number,
+  totalSections: number,
+  options?: NewsletterOptions
+): Promise<string> {
+  const vibeDescription = vibe.join(', ');
+  const updatesList = updates.map(u => {
+    const mediaHtml = u.mediaUrls?.map((url, index) => `
+  <figure class="my-4">
+    <img src="${url}" 
+         alt="Update from ${u.userName} - Media ${index + 1}" 
+         class="rounded-lg shadow-md max-w-[250px] w-full h-auto mx-auto"
+         loading="lazy" />
+  </figure>
+`).join('\n') || '';
+
+    return `<div class="update-details" data-member="${u.userName}">
+  <div class="update-content mb-4">
+    ${u.content}
+  </div>
+  ${mediaHtml}
+</div>`;
+  }).join('\n\n');
+
+  const prompt = `Create part ${sectionIndex + 1} of ${totalSections} of the newsletter for the group "${loopName}" with a ${vibeDescription} tone.
+
+Here are the updates to cover in this section:
+
+${updatesList}
+
+Important requirements:
+1. If this is section 1 (${sectionIndex === 0}):
+   - Create a catchy overall title for the newsletter
+   - Write an engaging introduction
+2. Create appropriate section headers that smoothly connect to other parts
+3. Weave the updates into a cohesive story:
+   - Create thematic sections that naturally connect different updates
+   - Use creative transitions between topics
+   - Include relevant quotes from members
+   - Make meaningful connections between updates
+   - INCLUDE ALL updates but present them naturally
+4. If this is the final section (${sectionIndex === totalSections - 1}):
+   - Write an engaging conclusion
+   - Add a fun prompt or question for next time
+5. IMPORTANT: Keep all image tags exactly as provided
+
+Guidelines:
+- Use proper HTML tags and styling:
+  - Main title (only in first section): <h1 class="text-4xl font-bold text-center mb-8">
+  - Section headers: <h2 class="text-2xl font-bold mt-8 mb-4">
+  - Quotes: <blockquote class="border-l-4 border-primary pl-4 my-4 italic">
+- Keep your ${vibeDescription} tone throughout
+- Make it feel like a natural part of a larger story
+- Preserve all original content while presenting it creatively`;
+
+  const completion = await openai.chat.completions.create({
+    model: "gpt-4-turbo-preview",
+    messages: [{ role: "user", content: prompt }],
+    temperature: 0.7,
+    max_tokens: 4000,
+  });
+
+  return completion.choices[0].message.content || '';
+}
+
 export async function generateNewsletter(
   loopName: string,
   updates: NewsletterUpdate[],
@@ -32,23 +109,16 @@ export async function generateNewsletter(
       })) || []
     );
 
-    const updatesList = updates.map(u => {
-      const mediaHtml = u.mediaUrls?.map((url, index) => `
-  <figure class="my-4">
-    <img src="${url}" 
-         alt="Update from ${u.userName} - Media ${index + 1}" 
-         class="rounded-lg shadow-md max-w-[250px] w-full h-auto mx-auto"
-         loading="lazy" />
-  </figure>
-`).join('\n') || '';
+    // Split updates into batches and generate sections
+    const batches = splitUpdatesToBatches(updates);
+    const sections = await Promise.all(
+      batches.map((batch, index) => 
+        generateNewsletterSection(loopName, batch, vibe, index, batches.length, options)
+      )
+    );
 
-      return `<div class="update-details" data-member="${u.userName}">
-  <div class="update-content mb-4">
-    ${u.content}
-  </div>
-  ${mediaHtml}
-</div>`;
-    }).join('\n\n');
+    // Combine all sections
+    const newsletterContent = sections.join('\n\n');
 
     // Create the photo gallery HTML if there are images
     const photoGallery = allImages.length > 0 ? `
@@ -67,64 +137,6 @@ export async function generateNewsletter(
   </figure>
   `).join('\n')}
 </div>` : '';
-
-    const vibeDescription = vibe.join(', ');
-    const customHeader = options?.customHeader || '';
-    const customClosing = options?.customClosing || '';
-
-    const prompt = `Create an engaging narrative-style newsletter for the group "${loopName}" with a ${vibeDescription} tone.
-
-${customHeader ? `Use this custom header: ${customHeader}\n` : ''}
-
-Here are all the updates from members:
-
-${updatesList}
-
-Important requirements:
-1. Create a catchy, fun title that captures the overall theme or spirit. The title should encapsulate the overall theme of the week and be engaging enough to draw in readers. Consider using wordplay, puns, or pop culture references.
-2. Weave the updates into a cohesive story:
-   - Create thematic sections that naturally connect different updates
-   - Use creative transitions to flow between topics
-   - Include relevant quotes from members' updates to add personality
-   - Make unexpected but meaningful connections between updates
-   - MAKE SURE TO INCLUDE ALL members that have sent updates in the newsletter
-   - if someone has sent long updates, make sure to highlight the most important parts
-   - Ensure smooth transitions between updates using segues that make sense contextually. Avoid abrupt jumps from one topic to another.
-   - Make the newsletter lengthy to include most updates
-   - prioritize the most important updates
-2. Use members’ inside jokes, slang, or unique writing styles to make the newsletter feel more like a personal recap rather than a generic update.
-3. Add personality through:
-   - Fun, thematic section headers
-   - Brief narrative commentary between sections
-   - Creative use of emojis that fit the story
-4. End with an engaging closing that ties everything together. Include a fun question, poll, or challenge at the end to encourage engagement. This could be a 'Guess who said this?' quote, a mini-award section (e.g., 'Funniest Update of the Week'), or a prompt asking readers to share their own highlights for next time.
-5. IMPORTANT: For any update that includes images:
-   - Keep all image tags exactly as provided
-   - Introduce images naturally in the narrative
-   - Add context around the images to make them part of the story
-6. Include at least 1 update received from all members in the Loop, ensuring that each person’s contribution is reflected in the newsletter in at least one sentence. If an update is missing, recheck the provided inputs and ensure nothing is excluded
-
-${customClosing ? `\n${customClosing}` : ''}
-
-Important guidelines:
-- Use proper HTML tags and styling:
-  - Main title: <h1 class="text-4xl font-bold text-center mb-8">
-  - Section headers: <h2 class="text-2xl font-bold mt-8 mb-4">
-  - Quotes: <blockquote class="border-l-4 border-primary pl-4 my-4 italic">
-- Keep your ${vibeDescription} tone throughout`;
-
-    const completion = await openai.chat.completions.create({
-      model: "gpt-4-turbo-preview",
-      messages: [{ role: "user", content: prompt }],
-      temperature: 0.7,
-      max_tokens: 4000,
-    });
-
-    const newsletterContent = completion.choices[0].message.content;
-
-    if (!newsletterContent) {
-      throw new Error("Failed to generate newsletter content");
-    }
 
     return `
 <div class="newsletter-content max-w-4xl mx-auto">
