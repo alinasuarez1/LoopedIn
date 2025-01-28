@@ -58,67 +58,87 @@ async function generateNewsletterSection(
     // First section: Include title and introduction
     prompt = `Create the opening section of the newsletter for the group "${loopName}" with a ${vibeDescription} tone.
 
-Here are the first set of updates to cover:
+You are a talented storyteller. Transform these raw updates into an engaging narrative:
 
 ${updatesList}
 
-Requirements:
-1. Start with:
-   - A catchy overall title for the entire newsletter using <h1> tag
-   - An engaging introduction that sets the tone
-   - A smooth transition into the first updates
-2. Present the updates in a natural, narrative flow:
-   - Group related updates together
-   - Use member quotes to highlight key points
-   - Keep ALL original content including images exactly as provided
+Key Requirements:
+1. Craft a compelling opening:
+   - Create a catchy, thematic title that captures the spirit of all updates
+   - Write an engaging introduction that sets up key themes
+   - Smoothly transition into your first story thread
+2. Transform updates into a narrative:
+   - Don't just present updates - tell a story about what's happening in the community
+   - Create connections between different members' experiences
+   - Use creative transitions and thematic groupings
+   - Incorporate member quotes naturally into your storytelling
+3. Keep all image content intact:
+   - Preserve all image tags exactly as provided
+   - Weave images naturally into your narrative flow
 
 Format Guidelines:
 - Main title: <h1 class="text-4xl font-bold text-center mb-8">
 - Section headers: <h2 class="text-2xl font-bold mt-8 mb-4">
-- Quotes: <blockquote class="border-l-4 border-primary pl-4 my-4 italic">`;
+- Quotes: <blockquote class="border-l-4 border-primary pl-4 my-4 italic">
+
+Remember: Don't just report updates - transform them into an engaging community story!`;
   } else if (sectionIndex === totalSections - 1) {
     // Last section: Include conclusion
     prompt = `Create the final section of the newsletter for the group "${loopName}" with a ${vibeDescription} tone.
 
-Here are the final updates to cover:
+You are a talented storyteller. Transform these final updates into the conclusion of your narrative:
 
 ${updatesList}
 
-Requirements:
-1. Present the updates in a natural, narrative flow:
-   - Group related updates together
-   - Use member quotes to highlight key points
-   - Keep ALL original content including images exactly as provided
-2. End with:
-   - A satisfying conclusion that ties everything together
-   - A fun prompt or question for next time
-
-Format Guidelines:
-- Section headers: <h2 class="text-2xl font-bold mt-8 mb-4">
-- Quotes: <blockquote class="border-l-4 border-primary pl-4 my-4 italic">`;
-  } else {
-    // Middle sections: Pure content focus
-    prompt = `Continue the newsletter for the group "${loopName}" with a ${vibeDescription} tone.
-
-Here are the next updates to cover:
-
-${updatesList}
-
-Requirements:
-1. Focus ONLY on presenting the updates:
-   - No introduction or transition text needed
-   - No "In this section" or similar phrases
-   - Just weave the updates together naturally
-2. Present updates in a natural, narrative flow:
-   - Group related updates together
-   - Use member quotes to highlight key points
-   - Keep ALL original content including images exactly as provided
+Key Requirements:
+1. Continue your narrative style:
+   - Maintain the storytelling approach from previous sections
+   - Create thematic connections between updates
+   - Use creative transitions and groupings
+2. Transform updates into engaging stories:
+   - Don't just present updates - tell the story of what's happening
+   - Draw connections between different members' experiences
+   - Use quotes and details to bring stories to life
+3. Craft a satisfying conclusion:
+   - Tie together major themes from throughout the newsletter
+   - End with an engaging prompt or question for next time
+4. Keep all image content intact:
+   - Preserve all image tags exactly as provided
+   - Weave images naturally into your narrative
 
 Format Guidelines:
 - Section headers: <h2 class="text-2xl font-bold mt-8 mb-4">
 - Quotes: <blockquote class="border-l-4 border-primary pl-4 my-4 italic">
 
-IMPORTANT: Do not mention this being a continuation or middle section. Just focus on the content.`;
+Remember: Create a satisfying conclusion to your community's story!`;
+  } else {
+    // Middle sections: Pure content focus
+    prompt = `Continue the newsletter for the group "${loopName}" with a ${vibeDescription} tone.
+
+You are a talented storyteller. Transform these raw updates into the next part of your narrative:
+
+${updatesList}
+
+Key Requirements:
+1. Transform updates into engaging stories:
+   - Don't just present the raw updates - tell the story of what's happening
+   - Create narrative threads that connect different updates
+   - Draw thematic connections between members' experiences
+   - Use creative transitions and groupings
+   - Incorporate quotes naturally into your storytelling
+2. Maintain narrative flow:
+   - Continue the storytelling style from previous sections
+   - Don't use any "In this section" phrases or transitions
+   - Focus purely on the story content
+3. Keep all image content intact:
+   - Preserve all image tags exactly as provided
+   - Weave images naturally into your narrative
+
+Format Guidelines:
+- Section headers: <h2 class="text-2xl font-bold mt-8 mb-4">
+- Quotes: <blockquote class="border-l-4 border-primary pl-4 my-4 italic">
+
+Remember: Focus on transforming updates into engaging stories - no section transitions needed!`;
   }
 
   const completion = await openai.chat.completions.create({
