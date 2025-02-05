@@ -1,7 +1,6 @@
 import Anthropic from '@anthropic-ai/sdk';
 import type { Newsletter } from '@db/schema';
 
-// the newest Anthropic model is "claude-3-5-sonnet-20241022" which was released October 22, 2024
 const anthropic = new Anthropic({
   apiKey: process.env.ANTHROPIC_API_KEY,
 });
@@ -170,7 +169,6 @@ export async function generateNewsletter(
 export async function analyzeUpdatesForHighlights(updates: string[]): Promise<string[]> {
   try {
     const prompt = `Given these updates from a group, identify 3-5 key themes or highlights that would be interesting to feature in a newsletter:
-168:
 
 ${updates.join('\n')}
 

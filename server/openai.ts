@@ -170,15 +170,14 @@ export async function generateNewsletter(
 export async function analyzeUpdatesForHighlights(updates: string[]): Promise<string[]> {
   try {
     const prompt = `Given these updates from a group, identify 3-5 key themes or highlights that would be interesting to feature in a newsletter:
-169:
 
 ${updates.join('\n')}
 
-172:Please output only the highlights, one per line, focusing on:
-173:- Common themes across updates
-174:- Notable achievements or milestones
-175:- Shared experiences or connections
-176:- Forward-looking plans or aspirations`;
+Please output only the highlights, one per line, focusing on:
+- Common themes across updates
+- Notable achievements or milestones
+- Shared experiences or connections
+- Forward-looking plans or aspirations`;
 
     const completion = await openai.chat.completions.create({
       model: "gpt-4-turbo-preview",
@@ -201,19 +200,17 @@ export async function suggestNewsletterImprovements(
 ): Promise<string> {
   try {
     const prompt = `Review this newsletter draft and suggest improvements to make it more engaging and aligned with the ${vibe.join(', ')} vibe:
-199:
 
 ${newsletterContent}
 
-202:Focus on:
-203:1. Tone and voice consistency
-204:2. Structure and flow
-205:3. Engagement factors
-206:4. Personal touches
-207:5. Call-to-action effectiveness
-208:
+Focus on:
+1. Tone and voice consistency
+2. Structure and flow
+3. Engagement factors
+4. Personal touches
+5. Call-to-action effectiveness
 
-209:Provide specific, actionable suggestions.`;
+Provide specific, actionable suggestions.`;
 
     const completion = await openai.chat.completions.create({
       model: "gpt-4-turbo-preview",
